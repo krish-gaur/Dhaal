@@ -1,0 +1,13 @@
+{
+  "months": [38000, 31500, 42000, 27000, 35500, 24000, 33000, 29500, 36000, 22500, 34000, 30000],
+  "month_labels": [
+    "Mar 2023", "Apr 2023", "May 2023", "Jun 2023",
+    "Jul 2023", "Aug 2023", "Sep 2023", "Oct 2023",
+    "Nov 2023", "Dec 2023", "Jan 2024", "Feb 2024"
+  ],
+  "essentials": 18500,
+  "existing_emi": 4200,
+  "savings": 35000,
+  "currency": "INR",
+  "note": "Synthetic income data for demonstration purposes only"
+}

@@ -1,0 +1,98 @@
+{
+  "schema_version": "1.0",
+  "document_id": "doc_fixture",
+  "document_name": "Suraksha Shield Health (fictional)",
+  "page_count": 6,
+  "clauses": [
+    {
+      "clause_id": "c_room_rent_01",
+      "document_id": "doc_fixture",
+      "page": 4,
+      "char_start": 129,
+      "char_end": 483,
+      "quote": "Room rent shall be limited to 1% of Sum Insured per day. In case the Insured occupies a room with rent exceeding the eligible limit, all associated medical expenses including surgeon fees, operation theatre charges, and diagnostic charges shall be proportionately reduced in the same ratio as the eligible room rent bears to the actual room rent charged.",
+      "quote_hash": "sha256:d875c819c65a6460ed3b247af6ff15ad5a8a40cf797d4e67b1023aed8ee1469c",
+      "rule": {
+        "type": "room_rent_limit",
+        "params": {
+          "basis": "pct_sum_insured_per_day",
+          "value": "0.01"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_waiting_period_01",
+      "document_id": "doc_fixture",
+      "page": 5,
+      "char_start": 380,
+      "char_end": 509,
+      "quote": "A waiting period of 24 months from the date of first policy inception applies to the following specified diseases and procedures:",
+      "quote_hash": "sha256:7cacc7ae546ac680e08cfbbe75dd5a00cc2f4451627f98ee6a69aac015a1b4a2",
+      "rule": {
+        "type": "waiting_period",
+        "params": {
+          "months_required": "24",
+          "disease_type": "specified_disease"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_non_payable_01",
+      "document_id": "doc_fixture",
+      "page": 6,
+      "char_start": 127,
+      "char_end": 224,
+      "quote": "The following items are not payable under this policy and will be deducted from the claim amount:",
+      "quote_hash": "sha256:dc3ffc4be536dc7cf00f3f738eedbce65040319764bb68f27c651b9185038337",
+      "rule": {
+        "type": "non_payable",
+        "params": {
+          "items": "gloves,syringes,admission_kit,attendant_charges,telephone"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_apportionment_01",
+      "document_id": "doc_fixture",
+      "page": 4,
+      "char_start": 943,
+      "char_end": 1144,
+      "quote": "The term \"associated medical expenses\" includes surgeon fees, operation theatre charges, anaesthetist fees, and diagnostic charges. Medicines and consumables are not subject to proportionate deduction.",
+      "quote_hash": "sha256:187689452aa059b97e771c8af45cfca93436d4fd6959936e051dd0ee36b531a9",
+      "rule": {
+        "type": "apportionment_base",
+        "params": {
+          "scope": "unresolved"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "unverified",
+        "reason": "'associated medical expenses' is partially defined but excludes medicines — whether diagnostics are included remains ambiguous. This drives a ₹24,667 swing in out-of-pocket cost."
+      }
+    }
+  ]
+}

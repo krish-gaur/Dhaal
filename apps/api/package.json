@@ -1,0 +1,9 @@
+{
+  "name": "api",
+  "private": true,
+  "scripts": {
+    "dev": "uvicorn main:app --reload --port 8000",
+    "test": "pytest -v",
+    "lint": "ruff check . && mypy ."
+  }
+}

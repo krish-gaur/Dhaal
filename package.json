@@ -1,0 +1,14 @@
+{
+  "name": "dhaal",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"pnpm --filter web dev\" \"pnpm --filter api dev\"",
+    "build": "pnpm --filter web build",
+    "test:api": "pnpm --filter api test",
+    "test:e2e": "pnpm --filter web test:e2e",
+    "lint": "pnpm --filter web lint && pnpm --filter api lint"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "gross_bill": "120000",
+  "nights": 3,
+  "room_rate_per_night": "4500",
+  "charges": [
+    { "name": "Room", "amount": "13500", "nights": 3 },
+    { "name": "Surgeon fees", "amount": "42000" },
+    { "name": "OT charges", "amount": "18000" },
+    { "name": "Medicines", "amount": "32500" },
+    { "name": "Diagnostics", "amount": "14000" }
+  ],
+  "hospital_name": "Fictional City Hospital",
+  "admission_date": "2024-02-15",
+  "discharge_date": "2024-02-18",
+  "procedure": "Laparoscopic Cholecystectomy (Gallbladder removal)"
+}
