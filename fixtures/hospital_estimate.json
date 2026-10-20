@@ -3,14 +3,38 @@
   "nights": 3,
   "room_rate_per_night": "4500",
   "charges": [
-    { "name": "Room", "amount": "13500", "nights": 3 },
-    { "name": "Surgeon fees", "amount": "42000" },
-    { "name": "OT charges", "amount": "18000" },
-    { "name": "Medicines", "amount": "32500" },
-    { "name": "Diagnostics", "amount": "14000" }
+    {
+      "name": "Room",
+      "amount": "13500",
+      "nights": 3
+    },
+    {
+      "name": "Surgeon fees",
+      "amount": "42000"
+    },
+    {
+      "name": "OT charges",
+      "amount": "18000"
+    },
+    {
+      "name": "Medicines",
+      "amount": "32500"
+    },
+    {
+      "name": "Diagnostics",
+      "amount": "14000"
+    }
   ],
   "hospital_name": "Fictional City Hospital",
   "admission_date": "2024-02-15",
   "discharge_date": "2024-02-18",
-  "procedure": "Laparoscopic Cholecystectomy (Gallbladder removal)"
+  "procedure": "Laparoscopic Cholecystectomy (Gallbladder removal)",
+  "non_payable_total": "9500",
+  "policy_facts": {
+    "sum_insured": "300000",
+    "policy_month_at_admit": 19,
+    "note": "Synthetic household/policy facts for the demo. Sum insured as per the fictional policy schedule (page 1). Policy month 19 is the scenario assumption: admission falls inside the 24-month specified-disease waiting period unless continuity credit is confirmed.",
+    "condition_tag": "gallbladder_cholecystectomy",
+    "inception_date": "2022-07-15"
+  }
 }

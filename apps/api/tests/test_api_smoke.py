@@ -22,8 +22,6 @@ import sys
 from decimal import Decimal
 from pathlib import Path
 
-import pytest
-
 # Put api dir on path
 _API_DIR = Path(__file__).parent.parent          # apps/api
 _REPO_ROOT = _API_DIR.parent.parent             # Dhaal/
@@ -40,8 +38,8 @@ os.environ["DHAAL_FIXTURES_DIR"] = str(_DHAAL_ROOT / "fixtures")
 
 from fastapi.testclient import TestClient
 
-from main import app
 from db.session_store import init_db
+from main import app
 
 init_db()
 
@@ -94,7 +92,9 @@ def test_full_fixture_flow() -> None:
     r = client.get(f"/api/session/{session_id}/clauses")
     assert r.status_code == 200
     clauses = r.json()
-    assert len(clauses) == 4
+    # 7 held clauses: room, apportionment, initial 30-day wait,
+    # specified 24-month wait, PED 36-month wait, exclusions, non-payables.
+    assert len(clauses) == 7
     clause_ids = {c["clause_id"] for c in clauses}
     assert "c_room_rent_01" in clause_ids
     assert "c_waiting_period_01" in clause_ids
@@ -126,8 +126,14 @@ def test_full_fixture_flow() -> None:
         "assumptions": {
             "policy_month_at_admit": 25,
             "remaining_sum_insured": "300000",
+            "sum_insured": "300000",
+            "non_payable_total": "9500",
             "apportionment_base": "surgeon_ot_diagnostics",
             "continuity_confirmed": True,
+            "condition_tag": "gallbladder_cholecystectomy",
+            "is_pre_existing": False,
+            "inception_date": "2022-07-15",
+            "admission_date": "2024-08-15",
         },
     }
     r = client.post(f"/api/session/{session_id}/simulate", json=simulate_body)
@@ -168,7 +174,8 @@ def test_full_fixture_flow() -> None:
     # All three must have negative lean-month free cash
     for loan in loans:
         assert _d(loan["free_cash_lean_month"]) < _d("0"), (
-            f"Offer {loan['label']} lean free cash should be negative: {loan['free_cash_lean_month']}"
+            f"Offer {loan['label']} lean free cash should be negative: "
+            f"{loan['free_cash_lean_month']}"
         )
 
     # APR is present and labelled
@@ -233,8 +240,14 @@ def test_simulate_scenario_a_waiting_period() -> None:
         "assumptions": {
             "policy_month_at_admit": 19,
             "remaining_sum_insured": "300000",
+            "sum_insured": "300000",
+            "non_payable_total": "9500",
             "apportionment_base": "surgeon_ot_diagnostics",
             "continuity_confirmed": False,
+            "condition_tag": "gallbladder_cholecystectomy",
+            "is_pre_existing": False,
+            "inception_date": "2022-07-15",
+            "admission_date": "2024-02-15",
         },
     })
     assert r.status_code == 200, r.text
@@ -275,8 +288,14 @@ def test_simulate_scenario_c1() -> None:
         "assumptions": {
             "policy_month_at_admit": 25,
             "remaining_sum_insured": "300000",
+            "sum_insured": "300000",
+            "non_payable_total": "9500",
             "apportionment_base": "surgeon_ot_diagnostics",
             "continuity_confirmed": True,
+            "condition_tag": "gallbladder_cholecystectomy",
+            "is_pre_existing": False,
+            "inception_date": "2022-07-15",
+            "admission_date": "2024-08-15",
         },
     })
     assert r.status_code == 200, r.text

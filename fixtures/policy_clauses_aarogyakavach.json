@@ -1,0 +1,226 @@
+{
+  "schema_version": 1,
+  "document_id": "doc_aarogyakavach",
+  "document_name": "AarogyaKavach Prime — Policy Wording (2022)",
+  "page_count": 5,
+  "clauses": [
+    {
+      "clause_id": "c_room_rent_01",
+      "document_id": "doc_aarogyakavach",
+      "page": 2,
+      "char_start": 141,
+      "char_end": 324,
+      "quote": "Room rent shall be limited to Rs. 5,000 per day. If the Insured occupies a\nroom with rent exceeding Rs. 5,000 per day, the associated medical expenses\nshall be proportionately reduced",
+      "quote_hash": "sha256:903c5f26a2f4472ef721501350d8b261d0f17f3c6eed723d19c096df60ecc7b6",
+      "rule": {
+        "type": "room_rent_limit",
+        "params": {
+          "basis": "fixed_per_day",
+          "value": "5000",
+          "section": "1.1 Room Rent Limit"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_apportionment_01",
+      "document_id": "doc_aarogyakavach",
+      "page": 2,
+      "char_start": 429,
+      "char_end": 619,
+      "quote": "Associated medical expenses means surgeon fees, operation theatre charges,\nanaesthetist fees, and diagnostic charges. Medicines, consumables, and\nimplants are not associated medical expenses",
+      "quote_hash": "sha256:c9a232f03a569e72892af8cfd7a178c54030636c1be7cb1da5f28e3f3fe5bf46",
+      "rule": {
+        "type": "apportionment_base",
+        "params": {
+          "scope": "surgeon_ot_diagnostics",
+          "candidates": "surgeon_ot_diagnostics",
+          "section": "1.2 Associated Medical Expenses - Definition"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_copayment_01",
+      "document_id": "doc_aarogyakavach",
+      "page": 2,
+      "char_start": 677,
+      "char_end": 748,
+      "quote": "The Insured shall bear 10% of the admissible claim amount as co-payment",
+      "quote_hash": "sha256:925aaf7490d63b2ee8bdb5ee7362d45bb8e2aa9ac5a385db038bbd415bda0a2b",
+      "rule": {
+        "type": "co_payment",
+        "params": {
+          "pct": "0.10",
+          "section": "1.3 Co-Payment"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_deductible_01",
+      "document_id": "doc_aarogyakavach",
+      "page": 2,
+      "char_start": 783,
+      "char_end": 863,
+      "quote": "A deductible of Rs. 5,000 shall apply to each and every claim under this\npolicy.",
+      "quote_hash": "sha256:64c076635d7ce43d43c782245d4cc3544590492956fa675f0a93c3fb7ae0a6b7",
+      "rule": {
+        "type": "deductible",
+        "params": {
+          "amount": "5000",
+          "section": "1.4 Deductible"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_waiting_initial_01",
+      "document_id": "doc_aarogyakavach",
+      "page": 3,
+      "char_start": 130,
+      "char_end": 251,
+      "quote": "A waiting period of 30 days from the policy commencement date applies to\nall claims, except those arising from accidents.",
+      "quote_hash": "sha256:fd399c83aae081abceddfc7f5a131ac059103c6dc71dbf6e50fc4d79547ac6a5",
+      "rule": {
+        "type": "waiting_period",
+        "params": {
+          "scope": "initial",
+          "days_required": "30",
+          "months_required": "0",
+          "disease_type": "initial waiting period",
+          "accident_exception": "true",
+          "section": "2.1 Initial Waiting Period"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_waiting_period_01",
+      "document_id": "doc_aarogyakavach",
+      "page": 3,
+      "char_start": 365,
+      "char_end": 494,
+      "quote": "A waiting period of 24 months from the date of first policy inception\napplies to the following specified diseases and procedures:",
+      "quote_hash": "sha256:b3a4d63478ea2c23f5f27b56d87e50a5855959bed612848906ee86183619c598",
+      "rule": {
+        "type": "waiting_period",
+        "params": {
+          "scope": "specified",
+          "months_required": "24",
+          "disease_type": "specified_disease",
+          "conditions": "cataract,hernia,joint_replacement,varicose_veins,benign_prostatic_hypertrophy",
+          "section": "2.2 Specified Disease Waiting Period"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_waiting_ped_01",
+      "document_id": "doc_aarogyakavach",
+      "page": 3,
+      "char_start": 854,
+      "char_end": 963,
+      "quote": "Pre-existing diseases are covered after a waiting period of 48 months\nfrom the date of first policy inception",
+      "quote_hash": "sha256:e412bae918bea4b0c02f07da438d5fd5cd54f23801a22872ee3d2d5e4febda36",
+      "rule": {
+        "type": "waiting_period",
+        "params": {
+          "scope": "pre_existing",
+          "months_required": "48",
+          "disease_type": "pre-existing diseases",
+          "section": "2.3 Pre-Existing Disease Waiting Period"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_exclusion_01",
+      "document_id": "doc_aarogyakavach",
+      "page": 4,
+      "char_start": 143,
+      "char_end": 326,
+      "quote": "This policy does not cover:\n(a) Cosmetic or aesthetic treatment\n(b) Bariatric or weight-loss surgery\n(c) Dental treatment (unless arising from an accident)\n(d) Experimental treatments",
+      "quote_hash": "sha256:e9da8a03b4bda1576d18f0b8e465c9fee65eddfe1b6652694c3fc97f04513777",
+      "rule": {
+        "type": "exclusion",
+        "params": {
+          "conditions": "cosmetic_treatment,bariatric_surgery,dental_treatment,experimental_treatment",
+          "section": "3.1 General Exclusions"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_non_payable_01",
+      "document_id": "doc_aarogyakavach",
+      "page": 4,
+      "char_start": 349,
+      "char_end": 446,
+      "quote": "The following items are not payable under this policy and will be deducted\nfrom the claim amount:",
+      "quote_hash": "sha256:8bdb6cf6a8d0353cca2f73c63642dd63ad1a4fe36e1ccc48aa86772991732e0d",
+      "rule": {
+        "type": "non_payable",
+        "params": {
+          "items": "gloves,syringes,attendant_food,telephone,laundry",
+          "section": "3.2 Non-Payable Items"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    }
+  ]
+}

@@ -22,6 +22,7 @@ from decimal import Decimal
 
 import pytest
 
+from engine.loans import AffordabilityContext
 from engine.rules import (
     ApportionmentBase,
     ChargeItem,
@@ -33,7 +34,6 @@ from engine.rules import (
     RuleType,
     WaitingPeriod,
 )
-from engine.loans import AffordabilityContext
 
 FIXTURE_WATERFALL = [
     RuleType.WAITING_PERIOD,
@@ -58,7 +58,11 @@ def fixture_charges() -> list[ChargeItem]:
 
 @pytest.fixture
 def fixture_rules_waiting_applies(fixture_charges: list[ChargeItem]) -> PolicyRules:
-    """Scenario A: policy month 19, waiting period 24 months → blocked."""
+    """Fixture policy rules (waiting period 24 months).
+
+    Kept under its original name: scenario A pairs these rules with
+    inputs whose policy_month_at_admit=19 (months elapsed live in inputs).
+    """
     return PolicyRules(
         sum_insured=Decimal("300000"),
         waterfall=FIXTURE_WATERFALL,
@@ -67,7 +71,6 @@ def fixture_rules_waiting_applies(fixture_charges: list[ChargeItem]) -> PolicyRu
             WaitingPeriod(
                 disease_type="specified_disease",
                 months_required=24,
-                months_elapsed=19,
             )
         ],
         non_payable=NonPayableList(
@@ -83,7 +86,7 @@ def fixture_rules_waiting_applies(fixture_charges: list[ChargeItem]) -> PolicyRu
 
 @pytest.fixture
 def fixture_rules_continuity(fixture_charges: list[ChargeItem]) -> PolicyRules:
-    """Scenarios B, C1, C2: continuity confirmed (month 25 >= 24)."""
+    """Same rules; scenarios B/C pair them with inputs at policy month 25."""
     return PolicyRules(
         sum_insured=Decimal("300000"),
         waterfall=FIXTURE_WATERFALL,
@@ -92,7 +95,6 @@ def fixture_rules_continuity(fixture_charges: list[ChargeItem]) -> PolicyRules:
             WaitingPeriod(
                 disease_type="specified_disease",
                 months_required=24,
-                months_elapsed=25,
             )
         ],
         non_payable=NonPayableList(

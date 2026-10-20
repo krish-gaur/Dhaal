@@ -1,0 +1,180 @@
+{
+  "schema_version": 1,
+  "document_id": "doc_suraksha_2024",
+  "document_name": "Suraksha Shield Health — Policy Wording (2024)",
+  "page_count": 6,
+  "clauses": [
+    {
+      "clause_id": "c_room_rent_01",
+      "document_id": "doc_suraksha_2024",
+      "page": 4,
+      "char_start": 129,
+      "char_end": 392,
+      "quote": "Room rent shall be limited to Rs. 4,000 per day. In case the Insured occupies\na room with rent exceeding the eligible limit, all associated medical expenses\nincluding\nsurgeon fees, operation theatre charges, and diagnostic charges shall be\nproportionately\nreduced",
+      "quote_hash": "sha256:41a4db37babc04bcd585f4b96054e0c0386d363a1f18245b28bff5e281f271d3",
+      "rule": {
+        "type": "room_rent_limit",
+        "params": {
+          "basis": "fixed_per_day",
+          "value": "4000",
+          "section": "3.1 Room Rent Limit"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_apportionment_01",
+      "document_id": "doc_suraksha_2024",
+      "page": 4,
+      "char_start": 951,
+      "char_end": 1152,
+      "quote": "The term \"associated medical expenses\"\nincludes\nsurgeon fees, operation theatre charges, anaesthetist fees, and diagnostic charges.\nMedicines and consumables are not subject to proportionate deduction.",
+      "quote_hash": "sha256:f368e345224be162ff21400ef80628c8b31841706de55aae8997ff371b94ab89",
+      "rule": {
+        "type": "apportionment_base",
+        "params": {
+          "scope": "unresolved",
+          "candidates": "room_related_only,surgeon_ot_diagnostics",
+          "section": "3.2 Proportionate Deduction"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "unverified",
+        "reason": "'associated medical expenses' is partially defined but excludes medicines — whether diagnostics are included remains ambiguous."
+      }
+    },
+    {
+      "clause_id": "c_waiting_initial_01",
+      "document_id": "doc_suraksha_2024",
+      "page": 5,
+      "char_start": 145,
+      "char_end": 266,
+      "quote": "A waiting period of 30 days from the policy commencement date applies to all claims,\nexcept those arising from accidents.",
+      "quote_hash": "sha256:eecd4c8550ad7e2758a5f2f11673e2077e146c1b9bd1dc5d64853a69f225f34c",
+      "rule": {
+        "type": "waiting_period",
+        "params": {
+          "scope": "initial",
+          "days_required": "30",
+          "months_required": "0",
+          "disease_type": "initial waiting period",
+          "accident_exception": "true",
+          "section": "4.1 Initial Waiting Period"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_waiting_period_01",
+      "document_id": "doc_suraksha_2024",
+      "page": 5,
+      "char_start": 380,
+      "char_end": 509,
+      "quote": "A waiting period of 24 months from the date of first policy inception applies to the\nfollowing specified diseases and procedures:",
+      "quote_hash": "sha256:0a4085f9eef046db6170e66be682dcf106a719d0fcb9e3561aecb45eca049c3e",
+      "rule": {
+        "type": "waiting_period",
+        "params": {
+          "scope": "specified",
+          "months_required": "24",
+          "disease_type": "specified_disease",
+          "conditions": "cataract,hernia,hydrocele,hysterectomy_nonmalignant,gallbladder_cholecystectomy,kidney_stones_lithotripsy,benign_prostatic_hypertrophy,varicose_veins,sinusitis",
+          "section": "4.2 Specified Disease Waiting Period"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_waiting_ped_01",
+      "document_id": "doc_suraksha_2024",
+      "page": 5,
+      "char_start": 1049,
+      "char_end": 1158,
+      "quote": "Pre-existing diseases are covered after a waiting period of 36 months from the date\nof first policy inception",
+      "quote_hash": "sha256:cca88fb9eafc226c0be57cfe3e08968ea6cab3843dd82ba199bd29bc367ceb1f",
+      "rule": {
+        "type": "waiting_period",
+        "params": {
+          "scope": "pre_existing",
+          "months_required": "36",
+          "disease_type": "pre-existing diseases",
+          "section": "4.3 Pre-Existing Disease Waiting Period"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_non_payable_01",
+      "document_id": "doc_suraksha_2024",
+      "page": 6,
+      "char_start": 127,
+      "char_end": 224,
+      "quote": "The following items are not payable under this policy and will be deducted from the\nclaim amount:",
+      "quote_hash": "sha256:597972e23f4c5fea85e32ec1f4985b6066035ed6de3237ce778b0800f4186352",
+      "rule": {
+        "type": "non_payable",
+        "params": {
+          "items": "gloves,syringes,admission_kit,attendant_charges,telephone",
+          "section": "5.1 Non-Payable Items"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_exclusion_01",
+      "document_id": "doc_suraksha_2024",
+      "page": 6,
+      "char_start": 692,
+      "char_end": 931,
+      "quote": "This policy does not cover:\n(a) Cosmetic or aesthetic treatment\n(b) Dental treatment (unless requiring hospitalisation due to accident)\n(c) Experimental treatments\n(d) Self-inflicted injuries\n(e) Treatment for alcoholism or drug dependency",
+      "quote_hash": "sha256:637b0b9063e9c20fad89df31161b1e696a06d70c38aa277058aa9913918a6afd",
+      "rule": {
+        "type": "exclusion",
+        "params": {
+          "conditions": "cosmetic_treatment,dental_treatment,experimental_treatment,self_inflicted_injury,substance_dependency_treatment",
+          "section": "5.2 General Exclusions"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    }
+  ]
+}

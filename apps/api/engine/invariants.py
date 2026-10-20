@@ -53,12 +53,40 @@ def assert_insurer_within_sum_insured(
 
 def check_all(result: ClaimResult) -> bool:
     """
-    Run all invariants against a ClaimResult.
+    Run all post-hoc invariants against a ClaimResult.
     Returns True if all pass. Raises InvariantError on first failure.
-    Callers should catch InvariantError and set invariants_ok=False before
-    blocking the response.
+
+    Note: `result.remaining_sum_insured` is the sum insured remaining
+    *after* this payment, so it must not be used as the ceiling for the
+    payment itself — the engine enforces that ceiling by clamping before
+    rounding. Here we only assert what can be verified from the result.
     """
     assert_non_negative(result.insurer_payment, result.out_of_pocket, result.gross_bill)
     assert_conservation(result.gross_bill, result.insurer_payment, result.out_of_pocket)
-    assert_insurer_within_sum_insured(result.insurer_payment, result.remaining_sum_insured)
+    # Every applied deduction must carry a citation. The engine fills an
+    # honest "source page not recorded" fallback rather than inventing a
+    # reference, so an empty citation here means a construction bug.
+    # (Clause-level traceability — source_clause_id pointing at a real,
+    # confirmed clause — is enforced by the API layer and its tests,
+    # where clause records exist.)
+    for d in result.deductions:
+        if not d.citation:
+            raise InvariantError(
+                f"Deduction '{d.name}' (rule {d.rule_id}) has no citation"
+            )
+    if result.out_of_pocket > result.gross_bill:
+        raise InvariantError(
+            f"out_of_pocket={result.out_of_pocket} exceeds gross_bill={result.gross_bill}"
+        )
+    if result.range_low is not None and result.range_high is not None:
+        if not (Decimal(0) <= result.range_low <= result.range_high <= result.gross_bill):
+            raise InvariantError(
+                f"Range invalid: low={result.range_low}, high={result.range_high}, "
+                f"gross={result.gross_bill}"
+            )
+        if not (result.range_low <= result.out_of_pocket <= result.range_high):
+            raise InvariantError(
+                f"out_of_pocket={result.out_of_pocket} outside range "
+                f"[{result.range_low}, {result.range_high}]"
+            )
     return True

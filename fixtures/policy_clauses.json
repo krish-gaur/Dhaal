@@ -16,7 +16,59 @@
         "type": "room_rent_limit",
         "params": {
           "basis": "pct_sum_insured_per_day",
-          "value": "0.01"
+          "value": "0.01",
+          "section": "3.1 Room Rent Limit"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_apportionment_01",
+      "document_id": "doc_fixture",
+      "page": 4,
+      "char_start": 943,
+      "char_end": 1144,
+      "quote": "The term \"associated medical expenses\" includes surgeon fees, operation theatre charges, anaesthetist fees, and diagnostic charges. Medicines and consumables are not subject to proportionate deduction.",
+      "quote_hash": "sha256:187689452aa059b97e771c8af45cfca93436d4fd6959936e051dd0ee36b531a9",
+      "rule": {
+        "type": "apportionment_base",
+        "params": {
+          "scope": "unresolved",
+          "candidates": "room_related_only,surgeon_ot_diagnostics",
+          "section": "3.2 Proportionate Deduction"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "unverified",
+        "reason": "'associated medical expenses' is partially defined but excludes medicines — whether diagnostics are included remains ambiguous. This drives a ₹24,667 swing in out-of-pocket cost."
+      }
+    },
+    {
+      "clause_id": "c_waiting_initial_01",
+      "document_id": "doc_fixture",
+      "page": 5,
+      "char_start": 145,
+      "char_end": 266,
+      "quote": "A waiting period of 30 days from the policy commencement date applies to all claims,\nexcept those arising from accidents.",
+      "quote_hash": "sha256:eecd4c8550ad7e2758a5f2f11673e2077e146c1b9bd1dc5d64853a69f225f34c",
+      "rule": {
+        "type": "waiting_period",
+        "params": {
+          "scope": "initial",
+          "days_required": "30",
+          "months_required": "0",
+          "disease_type": "initial waiting period",
+          "accident_exception": "true",
+          "section": "4.1 Initial Waiting Period"
         }
       },
       "verification": {
@@ -39,7 +91,35 @@
         "type": "waiting_period",
         "params": {
           "months_required": "24",
-          "disease_type": "specified_disease"
+          "disease_type": "specified_disease",
+          "scope": "specified",
+          "conditions": "cataract,hernia,hydrocele,hysterectomy_nonmalignant,gallbladder_cholecystectomy,kidney_stones_lithotripsy,benign_prostatic_hypertrophy,varicose_veins,sinusitis",
+          "section": "4.2 Specified Disease Waiting Period"
+        }
+      },
+      "verification": {
+        "schema_valid": true,
+        "quote_found": true,
+        "numbers_supported": true,
+        "interpretation_status": "verified",
+        "reason": ""
+      }
+    },
+    {
+      "clause_id": "c_waiting_ped_01",
+      "document_id": "doc_fixture",
+      "page": 5,
+      "char_start": 1049,
+      "char_end": 1158,
+      "quote": "Pre-existing diseases are covered after a waiting period of 36 months from the date\nof first policy inception",
+      "quote_hash": "sha256:cca88fb9eafc226c0be57cfe3e08968ea6cab3843dd82ba199bd29bc367ceb1f",
+      "rule": {
+        "type": "waiting_period",
+        "params": {
+          "scope": "pre_existing",
+          "months_required": "36",
+          "disease_type": "pre-existing diseases",
+          "section": "4.3 Pre-Existing Disease Waiting Period"
         }
       },
       "verification": {
@@ -61,7 +141,8 @@
       "rule": {
         "type": "non_payable",
         "params": {
-          "items": "gloves,syringes,admission_kit,attendant_charges,telephone"
+          "items": "gloves,syringes,admission_kit,attendant_charges,telephone",
+          "section": "5.1 Non-Payable Items"
         }
       },
       "verification": {
@@ -73,25 +154,26 @@
       }
     },
     {
-      "clause_id": "c_apportionment_01",
+      "clause_id": "c_exclusion_01",
       "document_id": "doc_fixture",
-      "page": 4,
-      "char_start": 943,
-      "char_end": 1144,
-      "quote": "The term \"associated medical expenses\" includes surgeon fees, operation theatre charges, anaesthetist fees, and diagnostic charges. Medicines and consumables are not subject to proportionate deduction.",
-      "quote_hash": "sha256:187689452aa059b97e771c8af45cfca93436d4fd6959936e051dd0ee36b531a9",
+      "page": 6,
+      "char_start": 692,
+      "char_end": 931,
+      "quote": "This policy does not cover:\n(a) Cosmetic or aesthetic treatment\n(b) Dental treatment (unless requiring hospitalisation due to accident)\n(c) Experimental treatments\n(d) Self-inflicted injuries\n(e) Treatment for alcoholism or drug dependency",
+      "quote_hash": "sha256:637b0b9063e9c20fad89df31161b1e696a06d70c38aa277058aa9913918a6afd",
       "rule": {
-        "type": "apportionment_base",
+        "type": "exclusion",
         "params": {
-          "scope": "unresolved"
+          "conditions": "cosmetic_treatment,dental_treatment,experimental_treatment,self_inflicted_injury,substance_dependency_treatment",
+          "section": "5.2 General Exclusions"
         }
       },
       "verification": {
         "schema_valid": true,
         "quote_found": true,
         "numbers_supported": true,
-        "interpretation_status": "unverified",
-        "reason": "'associated medical expenses' is partially defined but excludes medicines — whether diagnostics are included remains ambiguous. This drives a ₹24,667 swing in out-of-pocket cost."
+        "interpretation_status": "verified",
+        "reason": ""
       }
     }
   ]

@@ -12,7 +12,6 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 
@@ -50,7 +49,7 @@ def _rules(
         waterfall=WATERFALL,
         room_limit=rl,
         waiting_periods=[
-            WaitingPeriod(disease_type="x", months_required=24, months_elapsed=25)
+            WaitingPeriod(disease_type="x", months_required=24)
         ],
         non_payable=NonPayableList(
             items=["item"], total=non_payable_total
@@ -232,7 +231,7 @@ def test_missing_room_limit_unresolved_not_zero() -> None:
         waterfall=WATERFALL,
         room_limit=None,  # UNKNOWN
         waiting_periods=[
-            WaitingPeriod(disease_type="x", months_required=24, months_elapsed=25)
+            WaitingPeriod(disease_type="x", months_required=24)
         ],
         non_payable=None,
         co_payment=None,
