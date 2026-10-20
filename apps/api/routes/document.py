@@ -4,15 +4,22 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import sqlite3
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
-from db.session_store import create_document, get_db, get_session, upsert_clauses
+from db.session_store import (
+    create_document,
+    get_db,
+    get_document,
+    get_session,
+    upsert_clauses,
+)
 from evidence.extract import get_provider
 from evidence.verify import check_injection, verify_all
-from routes.schemas import DocumentResponse
+from routes.schemas import DocumentPagesResponse, DocumentResponse
 
 logger = logging.getLogger(__name__)
 
@@ -22,8 +29,6 @@ _MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 _PDF_MAGIC = b"%PDF"
 
 # Fixture document metadata (used when session mode is "fixture")
-import os
-
 _FIXTURE_PDF_PATH = Path(
     os.getenv("DHAAL_FIXTURES_DIR")
     or str(Path(__file__).parent.parent.parent.parent / "fixtures")
@@ -36,7 +41,7 @@ def _extract_page_texts(file_bytes: bytes) -> list[str]:
     try:
         import pdfplumber
     except ImportError:
-        raise HTTPException(status_code=500, detail="pdfplumber not installed")
+        raise HTTPException(status_code=500, detail="pdfplumber not installed") from None
 
     page_texts: list[str] = []
     with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
@@ -82,12 +87,27 @@ async def upload_document(
         )
 
     # Extract text
-    page_texts = _extract_page_texts(file_bytes)
+    try:
+        page_texts = _extract_page_texts(file_bytes)
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=422,
+            detail="Could not read that PDF. Please try a different file.",
+        ) from None
 
     if not page_texts:
         raise HTTPException(
             status_code=422,
             detail="Could not read that PDF. Please try a different file.",
+        )
+
+    # Page count must be within a sane range for a policy document
+    if len(page_texts) > 100:
+        raise HTTPException(
+            status_code=422,
+            detail="That PDF has more than 100 pages. Please upload the policy wording only.",
         )
 
     # Detect scanned PDF
@@ -212,4 +232,28 @@ def _load_fixture_document(db: sqlite3.Connection, session_id: str) -> DocumentR
         filename="Sample policy · Suraksha Shield Health (fictional)",
         page_count=len(page_texts),
         mode="fixture",
+    )
+
+
+@router.get("/{session_id}/document", response_model=DocumentPagesResponse)
+def get_document_pages(
+    session_id: str,
+    db: sqlite3.Connection = Depends(get_db),
+) -> DocumentPagesResponse:
+    session = get_session(db, session_id)
+    if session is None:
+        raise HTTPException(status_code=404, detail="Session not found")
+    doc = get_document(db, session_id)
+    if doc is None:
+        raise HTTPException(status_code=404, detail="No document in this session")
+    try:
+        pages_raw = json.loads(doc.text_content)
+        pages = [str(p) for p in pages_raw] if isinstance(pages_raw, list) else []
+    except Exception:
+        pages = []
+    return DocumentPagesResponse(
+        document_id=doc.id,
+        filename=doc.filename,
+        page_count=doc.page_count,
+        pages=pages,
     )

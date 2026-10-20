@@ -13,11 +13,11 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Protocol
 
 
-class ClauseStatus(str, Enum):
+class ClauseStatus(StrEnum):
     """
     Exactly six statuses. No others are legal anywhere in the codebase.
 

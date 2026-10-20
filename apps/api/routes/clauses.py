@@ -8,13 +8,17 @@ import sqlite3
 from fastapi import APIRouter, Depends, HTTPException
 
 from db.session_store import (
-    get_clause,
     get_clauses,
     get_db,
     get_session,
     update_clause_status,
 )
-from routes.schemas import ClauseResponse, PatchClauseRequest, RuleParamResponse, VerificationResponse
+from routes.schemas import (
+    ClauseResponse,
+    PatchClauseRequest,
+    RuleParamResponse,
+    VerificationResponse,
+)
 
 router = APIRouter(prefix="/api/session", tags=["clauses"])
 

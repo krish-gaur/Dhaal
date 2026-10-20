@@ -14,9 +14,10 @@ The LLM never touches this module. It extracts data; the engine computes.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from decimal import ROUND_FLOOR, Decimal
 
-from engine.invariants import assert_conservation, assert_non_negative
+from engine.invariants import assert_conservation, assert_non_negative, check_all
 from engine.rules import (
     ApportionmentBase,
     ChargeItem,
@@ -92,7 +93,9 @@ def _charges_in_apportionment_base(
         )
 
     # UNRESOLVED — caller handles
-    raise ValueError("apportionment_base is UNRESOLVED — must not call _charges_in_apportionment_base")
+    raise ValueError(
+        "apportionment_base is UNRESOLVED — must not call _charges_in_apportionment_base"
+    )
 
 
 def simulate_claim(rules: PolicyRules, inputs: ClaimInputs) -> ClaimResult:
@@ -120,7 +123,9 @@ def simulate_claim(rules: PolicyRules, inputs: ClaimInputs) -> ClaimResult:
         # ------------------------------------------------------------------ #
         if rule_type == RuleType.WAITING_PERIOD:
             for wp in rules.waiting_periods:
-                if wp.months_elapsed < wp.months_required:
+                # Months elapsed is a claim input (policy_month_at_admit);
+                # the rule only carries the requirement.
+                if inputs.policy_month_at_admit < wp.months_required:
                     # Claim inadmissible — insurer pays nothing
                     waiting_period_blocked = True
                     deductions.append(
@@ -128,7 +133,7 @@ def simulate_claim(rules: PolicyRules, inputs: ClaimInputs) -> ClaimResult:
                             name=f"Waiting period — {wp.disease_type}",
                             amount=inputs.gross_bill,
                             basis=(
-                                f"Policy month {wp.months_elapsed} < "
+                                f"Policy month {inputs.policy_month_at_admit} < "
                                 f"{wp.months_required} months required"
                             ),
                             rule_id="waiting_period",
@@ -159,14 +164,22 @@ def simulate_claim(rules: PolicyRules, inputs: ClaimInputs) -> ClaimResult:
                     )
                 )
                 net -= npt
-            # None means we simply don't know; add to unresolved
+            # None means we simply don't know; add to unresolved.
+            # Worst case derived from the bill itself: in the extreme, every
+            # rupee still in the running net could be a non-payable item.
+            # We never substitute an invented "typical" figure.
             else:
                 unresolved.append(
                     UnresolvedRule(
                         rule_type=RuleType.NON_PAYABLE,
-                        reason="Non-payable list not found in policy document",
+                        reason=(
+                            "Non-payable items (or their billed total) are not "
+                            "known, so this deduction cannot be calculated. "
+                            "Range assumes anything from ₹0 to the full "
+                            "remaining bill could be non-payable."
+                        ),
                         low_impact=_ZERO,
-                        high_impact=Decimal("10000"),  # conservative estimate
+                        high_impact=max(_ZERO, net),
                     )
                 )
 
@@ -213,28 +226,65 @@ def simulate_claim(rules: PolicyRules, inputs: ClaimInputs) -> ClaimResult:
                 # No proportionate deduction clause — skip silently
                 pass
             elif rules.room_limit is None:
-                unresolved.append(
-                    UnresolvedRule(
-                        rule_type=RuleType.PROPORTIONATE_DEDUCTION,
-                        reason="Cannot compute proportionate deduction without room limit",
-                        low_impact=_ZERO,
-                        high_impact=Decimal("25000"),
-                    )
+                # Worst case derived from the bill: without a room cap the
+                # eligible/billed ratio is unknown, so the deduction could
+                # reach the whole non-room charge pool (ratio → 0).
+                non_room_total = sum(
+                    (c.amount for c in inputs.charges if c.nights is None), _ZERO
                 )
-            elif rules.apportionment_base == ApportionmentBase.UNRESOLVED:
-                # The phrase 'associated medical expenses' is undefined in this policy.
-                # This is an explicit, surfaced unresolved state — never a silent default.
                 unresolved.append(
                     UnresolvedRule(
                         rule_type=RuleType.PROPORTIONATE_DEDUCTION,
                         reason=(
-                            "'Associated medical expenses' undefined in policy wording. "
-                            "Apportionment base is ambiguous — determines ₹24,667 swing."
+                            "Cannot compute proportionate deduction without the "
+                            "room rent limit. Range assumes anything from ₹0 "
+                            "to all non-room charges being reduced."
                         ),
                         low_impact=_ZERO,
-                        high_impact=Decimal("24667"),
+                        high_impact=max(_ZERO, min(non_room_total, net)),
                     )
                 )
+            elif rules.apportionment_base == ApportionmentBase.UNRESOLVED:
+                # The phrase 'associated medical expenses' is not conclusively
+                # defined for this policy. This is an explicit, surfaced
+                # unresolved state — never a silent default.
+                # Range semantics (design §4.1): the low bound assumes zero
+                # impact from this rule; the high bound is the worst-case
+                # impact over the interpretations the EXTRACTED WORDING can
+                # support (rules.apportionment_candidates, derived from
+                # clause evidence). A reading the wording expressly rules
+                # out — e.g. applying the deduction to medicines a clause
+                # exempts — must never become the "worst case".
+                room_billed_u = _room_billed(inputs)
+                room_eligible_u = _room_cap_per_day(rules) * inputs.nights
+                if room_billed_u > room_eligible_u:
+                    ratio_u = room_eligible_u / room_billed_u
+                    candidates = rules.apportionment_candidates or (
+                        ApportionmentBase.ROOM_RELATED_ONLY,
+                        ApportionmentBase.SURGEON_OT_DIAGNOSTICS,
+                        ApportionmentBase.ALL_MEDICAL_EXPENSES,
+                    )
+                    concrete_deductions = [
+                        _charges_in_apportionment_base(inputs.charges, base) * (_ONE - ratio_u)
+                        for base in candidates
+                    ]
+                    low_u = _ZERO
+                    high_u = max(concrete_deductions, default=_ZERO)
+                    swing = _floor_rupee(high_u - low_u)
+                    unresolved.append(
+                        UnresolvedRule(
+                            rule_type=RuleType.PROPORTIONATE_DEDUCTION,
+                            reason=(
+                                "'Associated medical expenses' is not fully defined in "
+                                f"the policy wording. Which charges it covers changes "
+                                f"this deduction by up to ₹{swing:,.0f}."
+                            ),
+                            low_impact=low_u,
+                            high_impact=high_u,
+                        )
+                    )
+                # Room at/below cap: no proportionate deduction under any
+                # interpretation — nothing is unresolved.
             else:
                 room_billed = _room_billed(inputs)
                 cap_per_day = _room_cap_per_day(rules)
@@ -255,7 +305,7 @@ def simulate_claim(rules: PolicyRules, inputs: ClaimInputs) -> ClaimResult:
                                 rule_type=RuleType.PROPORTIONATE_DEDUCTION,
                                 reason="Apportionment base computation failed",
                                 low_impact=_ZERO,
-                                high_impact=Decimal("25000"),
+                                high_impact=max(_ZERO, net),
                             )
                         )
                     else:
@@ -351,21 +401,26 @@ def simulate_claim(rules: PolicyRules, inputs: ClaimInputs) -> ClaimResult:
     range_low: Decimal | None = None
     range_high: Decimal | None = None
     if unresolved:
+        # Unresolved deductions were NOT subtracted from net_admissible.
+        # The out-of-pocket range therefore comes from *subtracting* their
+        # possible impact from the insurer payment:
+        #   insurer_max: unresolved rules deduct as little as possible
+        #   insurer_min: unresolved rules deduct as much as possible
+        # range_low/range_high are the resulting min/max out-of-pocket.
         total_low = sum((u.low_impact for u in unresolved), _ZERO)
         total_high = sum((u.high_impact for u in unresolved), _ZERO)
-        # range_low = oop assuming worst-case for insurer (min deductions)
-        range_low_insurer = _floor_rupee(
-            _clamp(net_admissible + total_high, _ZERO, inputs.remaining_sum_insured)
+        insurer_max = _floor_rupee(
+            _clamp(net_admissible - total_low, _ZERO, inputs.remaining_sum_insured)
         )
-        range_high_insurer = _floor_rupee(
-            _clamp(net_admissible + total_low, _ZERO, inputs.remaining_sum_insured)
+        insurer_min = _floor_rupee(
+            _clamp(net_admissible - total_high, _ZERO, inputs.remaining_sum_insured)
         )
-        range_low = inputs.gross_bill - range_high_insurer   # min oop
-        range_high = inputs.gross_bill - range_low_insurer   # max oop
+        range_low = inputs.gross_bill - insurer_max    # min possible oop
+        range_high = inputs.gross_bill - insurer_min   # max possible oop
 
     non_payable_total = _sum_deductions_by_rule(deductions, "non_payable")
 
-    return ClaimResult(
+    result = ClaimResult(
         gross_bill=inputs.gross_bill,
         non_payable_total=non_payable_total,
         admissible=inputs.gross_bill - non_payable_total,
@@ -378,6 +433,13 @@ def simulate_claim(rules: PolicyRules, inputs: ClaimInputs) -> ClaimResult:
         range_high=range_high,
         invariants_ok=True,
     )
+    # Final boundary check (includes range sanity). A failure here means an
+    # engine bug — flag the result so the route layer blocks it.
+    try:
+        check_all(result)
+    except InvariantError:
+        return replace(result, invariants_ok=False)
+    return result
 
 
 def _sum_deductions_by_rule(deductions: list[Deduction], rule_id: str) -> Decimal:

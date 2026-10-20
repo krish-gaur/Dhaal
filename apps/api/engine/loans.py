@@ -222,10 +222,11 @@ def compute_affordability(ctx: AffordabilityContext) -> AffordabilitySummary:
     n = len(ctx.income_months)
     mean = sum(ctx.income_months, _ZERO) / Decimal(n)
     sorted_inc = sorted(ctx.income_months)
-    if n % 2 == 1:
-        median = sorted_inc[n // 2]
-    else:
-        median = (sorted_inc[n // 2 - 1] + sorted_inc[n // 2]) / 2
+    median = (
+        sorted_inc[n // 2]
+        if n % 2 == 1
+        else (sorted_inc[n // 2 - 1] + sorted_inc[n // 2]) / 2
+    )
 
     lowest = sorted_inc[0]
     avg_free_cash = mean - ctx.essentials - ctx.existing_emi
@@ -264,7 +265,12 @@ def compute_loan_metrics(
     monthly_emi = emi(offer.principal, offer.nominal_rate_pa, offer.tenor_months)
     total_repayment = monthly_emi * offer.tenor_months
     total_interest = total_repayment - offer.principal
-    total_cash_out = total_repayment + offer.processing_fee + offer.gst_on_fee + offer.credit_life_premium
+    total_cash_out = (
+        total_repayment
+        + offer.processing_fee
+        + offer.gst_on_fee
+        + offer.credit_life_premium
+    )
 
     apr = apr_from_cashflows(net_disbursed, monthly_emi, offer.tenor_months)
 

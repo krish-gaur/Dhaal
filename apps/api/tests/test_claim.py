@@ -18,7 +18,6 @@ from engine.rules import (
     ChargeItem,
     ClaimInputs,
     CoPayment,
-    InvariantError,
     NonPayableList,
     PolicyRules,
     ProportionateRule,
@@ -208,7 +207,7 @@ def test_copay_applied(fixture_inputs_above_cap: ClaimInputs) -> None:
         waterfall=FIXTURE_WATERFALL,
         room_limit=RoomLimit(basis="pct_sum_insured_per_day", value=Decimal("0.01")),
         waiting_periods=[
-            WaitingPeriod(disease_type="x", months_required=24, months_elapsed=25)
+            WaitingPeriod(disease_type="x", months_required=24)
         ],
         non_payable=NonPayableList(items=["item"], total=Decimal("9500")),
         co_payment=CoPayment(pct=Decimal("0.10")),
@@ -232,7 +231,7 @@ def test_deductible_applied(fixture_inputs_above_cap: ClaimInputs) -> None:
         waterfall=FIXTURE_WATERFALL,
         room_limit=RoomLimit(basis="pct_sum_insured_per_day", value=Decimal("0.01")),
         waiting_periods=[
-            WaitingPeriod(disease_type="x", months_required=24, months_elapsed=25)
+            WaitingPeriod(disease_type="x", months_required=24)
         ],
         non_payable=NonPayableList(items=["item"], total=Decimal("9500")),
         co_payment=None,
@@ -291,7 +290,7 @@ def test_room_limit_none_returns_unresolved(fixture_inputs_above_cap: ClaimInput
         waterfall=FIXTURE_WATERFALL,
         room_limit=None,  # UNKNOWN
         waiting_periods=[
-            WaitingPeriod(disease_type="x", months_required=24, months_elapsed=25)
+            WaitingPeriod(disease_type="x", months_required=24)
         ],
         non_payable=NonPayableList(items=["item"], total=Decimal("9500")),
         co_payment=None,
@@ -344,7 +343,7 @@ def test_rounding_once_floor() -> None:
         waterfall=_wf,
         room_limit=RoomLimit(basis="pct_sum_insured_per_day", value=Decimal("0.01")),
         waiting_periods=[
-            WaitingPeriod(disease_type="x", months_required=24, months_elapsed=25)
+            WaitingPeriod(disease_type="x", months_required=24)
         ],
         non_payable=NonPayableList(items=["item"], total=Decimal("9500")),
         co_payment=None,
@@ -372,3 +371,189 @@ def test_rounding_once_floor() -> None:
     assert result.insurer_payment == Decimal("81333")
     # And conservation holds
     assert result.insurer_payment + result.out_of_pocket == Decimal("120000")
+
+
+# ---------------------------------------------------------------------------
+# Unresolved-rule ranges (regression: range_high was once negative)
+# ---------------------------------------------------------------------------
+
+
+def test_unresolved_apportionment_range_fixture_evidence(
+    fixture_rules_continuity: PolicyRules,
+    fixture_inputs_above_cap: ClaimInputs,
+) -> None:
+    """
+    Apportionment unresolved under the fixture policy's evidence.
+
+    The extracted clause defines 'associated medical expenses' as surgeon
+    fees, OT, anaesthetist and diagnostic charges, and states medicines
+    and consumables are NOT subject to proportionate deduction. The
+    evidence therefore supports at most SURGEON_OT_DIAGNOSTICS as the
+    worst case; ALL_MEDICAL_EXPENSES would contradict the wording and
+    overstate the ceiling (by ₹10,833 on this bill).
+
+    Design §4.1 range semantics: low = zero impact, high = worst case.
+      zero impact             → insurer 106000, oop 14000
+      surgeon+OT+diagnostics  → insurer  81333, oop 38667 (scenario B)
+    Expected oop range [14000, 38667] — a ₹24,667 swing, matching the
+    figure recorded in the fixture clause's verification note. The high
+    bound is cross-checked against an independent resolved run rather
+    than copied as a literal.
+    """
+    rules = replace(
+        fixture_rules_continuity,
+        apportionment_base=ApportionmentBase.UNRESOLVED,
+        apportionment_candidates=(
+            ApportionmentBase.ROOM_RELATED_ONLY,
+            ApportionmentBase.SURGEON_OT_DIAGNOSTICS,
+        ),
+    )
+    result = simulate_claim(rules, fixture_inputs_above_cap)
+
+    resolved = simulate_claim(fixture_rules_continuity, fixture_inputs_above_cap)
+    assert resolved.out_of_pocket == Decimal("38667")  # scenario B golden
+
+    assert result.insurer_payment == Decimal("106000")
+    assert result.out_of_pocket == Decimal("14000")  # point = zero-impact path
+    assert len(result.unresolved) == 1
+    assert result.range_low == result.out_of_pocket
+    assert result.range_high == resolved.out_of_pocket
+    assert result.range_low == Decimal("14000")
+    assert Decimal("0") <= result.range_low <= result.out_of_pocket
+    assert result.out_of_pocket <= result.range_high <= result.gross_bill
+    assert result.invariants_ok is True
+    _check_conservation(result)
+
+
+def test_unresolved_apportionment_range_no_evidence_widest(
+    fixture_rules_continuity: PolicyRules,
+    fixture_inputs_above_cap: ClaimInputs,
+) -> None:
+    """
+    Without candidate evidence, every concrete base remains possible and
+    the range is honestly at its widest: high = OOP under
+    ALL_MEDICAL_EXPENSES (106500 * (1 - 2/3) = 35500 deduction →
+    insurer_min 70500 → oop 49500), derived via an independent run.
+    """
+    rules = replace(
+        fixture_rules_continuity, apportionment_base=ApportionmentBase.UNRESOLVED
+    )
+    result = simulate_claim(rules, fixture_inputs_above_cap)
+
+    worst = simulate_claim(
+        replace(
+            fixture_rules_continuity,
+            apportionment_base=ApportionmentBase.ALL_MEDICAL_EXPENSES,
+        ),
+        fixture_inputs_above_cap,
+    )
+    assert result.range_low == Decimal("14000")
+    assert result.range_high == worst.out_of_pocket == Decimal("49500")
+    assert Decimal("0") <= result.range_low <= result.out_of_pocket
+    assert result.out_of_pocket <= result.range_high <= result.gross_bill
+    assert result.invariants_ok is True
+    _check_conservation(result)
+
+
+def test_range_bounds_consistent_across_configurations(
+    fixture_rules_continuity: PolicyRules,
+    fixture_inputs_above_cap: ClaimInputs,
+    fixture_inputs_at_cap: ClaimInputs,
+) -> None:
+    """
+    Bounds can never be negative or internally inconsistent, whatever is
+    unresolved (regression guard for the historical sign error that once
+    produced a negative range_high).
+
+    For every configuration: insurer + oop == gross, both >= 0, and any
+    reported range satisfies 0 <= low <= point oop <= high <= gross.
+    """
+    evidence_rules = replace(
+        fixture_rules_continuity,
+        apportionment_base=ApportionmentBase.UNRESOLVED,
+        apportionment_candidates=(
+            ApportionmentBase.ROOM_RELATED_ONLY,
+            ApportionmentBase.SURGEON_OT_DIAGNOSTICS,
+        ),
+    )
+    expensive_room = replace(
+        fixture_inputs_above_cap,
+        gross_bill=Decimal("200000"),
+        room_rate_per_night=Decimal("20000"),
+        charges=[
+            ChargeItem(name="Room", amount=Decimal("60000"), nights=3),
+            ChargeItem(name="Surgeon fees", amount=Decimal("90000")),
+            ChargeItem(name="Medicines", amount=Decimal("50000")),
+        ],
+    )
+    zero_bill = ClaimInputs(
+        gross_bill=Decimal("0"),
+        charges=[],
+        room_rate_per_night=Decimal("0"),
+        nights=1,
+        policy_month_at_admit=25,
+        remaining_sum_insured=Decimal("300000"),
+    )
+    variants: list[tuple[PolicyRules, ClaimInputs]] = [
+        (evidence_rules, fixture_inputs_above_cap),
+        (evidence_rules, fixture_inputs_at_cap),
+        (evidence_rules, expensive_room),
+        (replace(fixture_rules_continuity, apportionment_base=ApportionmentBase.UNRESOLVED),
+         fixture_inputs_above_cap),
+        (replace(fixture_rules_continuity, room_limit=None), fixture_inputs_above_cap),
+        (replace(fixture_rules_continuity, non_payable=None), fixture_inputs_above_cap),
+        (replace(fixture_rules_continuity, room_limit=None, non_payable=None),
+         expensive_room),
+        (evidence_rules, zero_bill),
+        # Waiting period blocks (month 19 < 24) with unresolved apportionment.
+        (evidence_rules, replace(fixture_inputs_above_cap, policy_month_at_admit=19)),
+    ]
+    for rules, inputs in variants:
+        result = simulate_claim(rules, inputs)
+        assert result.invariants_ok is True
+        assert result.insurer_payment + result.out_of_pocket == result.gross_bill
+        assert result.insurer_payment >= Decimal("0")
+        assert result.out_of_pocket >= Decimal("0")
+        if result.unresolved:
+            assert result.range_low is not None and result.range_high is not None
+            assert (
+                Decimal("0")
+                <= result.range_low
+                <= result.out_of_pocket
+                <= result.range_high
+                <= result.gross_bill
+            )
+        else:
+            assert result.range_low is None and result.range_high is None
+        _check_conservation(result)
+
+
+def test_unresolved_apportionment_at_cap_no_range(
+    fixture_rules_continuity: PolicyRules,
+    fixture_inputs_at_cap: ClaimInputs,
+) -> None:
+    """Room at cap → no proportionate deduction under any reading → no range."""
+    rules = replace(
+        fixture_rules_continuity, apportionment_base=ApportionmentBase.UNRESOLVED
+    )
+    result = simulate_claim(rules, fixture_inputs_at_cap)
+    assert result.unresolved == []
+    assert result.range_low is None
+    assert result.range_high is None
+    assert result.insurer_payment == Decimal("110500")
+    _check_conservation(result)
+
+
+def test_room_limit_none_range_within_bounds(
+    fixture_rules_continuity: PolicyRules,
+    fixture_inputs_above_cap: ClaimInputs,
+) -> None:
+    """Unknown room limit → wide but always-valid range, never negative."""
+    rules = replace(fixture_rules_continuity, room_limit=None)
+    result = simulate_claim(rules, fixture_inputs_above_cap)
+    assert result.unresolved, "expected unresolved rules when room limit unknown"
+    assert result.range_low is not None and result.range_high is not None
+    assert Decimal("0") <= result.range_low <= result.range_high <= result.gross_bill
+    assert result.range_low <= result.out_of_pocket <= result.range_high
+    assert result.invariants_ok is True
+    _check_conservation(result)

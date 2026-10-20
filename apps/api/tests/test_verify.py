@@ -26,7 +26,6 @@ from evidence.verify import (
     check_injection,
     detect_conflicts,
     normalise,
-    verify_all,
     verify_clause,
 )
 

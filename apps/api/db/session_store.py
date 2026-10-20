@@ -13,8 +13,8 @@ import json
 import os
 import sqlite3
 import uuid
+from collections.abc import Generator
 from pathlib import Path
-from typing import Generator
 
 from db.models import ClauseRow, DocumentRow, SessionRow, SimulationRunRow
 
@@ -126,7 +126,8 @@ def create_document(
     doc_id = str(uuid.uuid4())
     text_content = json.dumps(page_texts, ensure_ascii=False)
     conn.execute(
-        "INSERT INTO documents (id, session_id, filename, page_count, text_content) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO documents (id, session_id, filename, page_count, text_content) "
+        "VALUES (?, ?, ?, ?, ?)",
         (doc_id, session_id, filename, page_count, text_content),
     )
     conn.commit()
@@ -294,7 +295,9 @@ def save_simulation_run(
 ) -> str:
     run_id = str(uuid.uuid4())
     conn.execute(
-        "INSERT INTO simulation_runs (id, session_id, inputs_json, result_json, invariants_ok) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO simulation_runs "
+        "(id, session_id, inputs_json, result_json, invariants_ok) "
+        "VALUES (?, ?, ?, ?, ?)",
         (
             run_id,
             session_id,
@@ -305,3 +308,21 @@ def save_simulation_run(
     )
     conn.commit()
     return run_id
+
+
+def get_runs(conn: sqlite3.Connection, session_id: str) -> list[SimulationRunRow]:
+    rows = conn.execute(
+        "SELECT * FROM simulation_runs WHERE session_id = ? ORDER BY created_at, id",
+        (session_id,),
+    ).fetchall()
+    return [
+        SimulationRunRow(
+            id=r["id"],
+            session_id=r["session_id"],
+            inputs_json=r["inputs_json"],
+            result_json=r["result_json"],
+            invariants_ok=r["invariants_ok"],
+            created_at=r["created_at"],
+        )
+        for r in rows
+    ]

@@ -11,13 +11,13 @@ Design rules enforced here:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal
-from enum import Enum
+from enum import StrEnum
 from typing import Literal
 
 
-class RuleType(str, Enum):
+class RuleType(StrEnum):
     NON_PAYABLE = "non_payable"
     ROOM_RENT_LIMIT = "room_rent_limit"
     PROPORTIONATE_DEDUCTION = "proportionate_deduction"
@@ -26,7 +26,7 @@ class RuleType(str, Enum):
     WAITING_PERIOD = "waiting_period"
 
 
-class ApportionmentBase(str, Enum):
+class ApportionmentBase(StrEnum):
     """
     Which charges are subject to proportionate deduction.
 
@@ -50,9 +50,18 @@ class RoomLimit:
 
 @dataclass(frozen=True)
 class WaitingPeriod:
+    """
+    A policy rule: `months_required` months must elapse before this
+    disease/procedure is covered.
+
+    Months actually elapsed is NOT part of the rule — it is a property of
+    the claim event, carried by `ClaimInputs.policy_month_at_admit`.
+    Keeping elapsed in exactly one place (the inputs) is what makes the
+    continuity counterfactual (change one input, recompute) well-defined.
+    """
+
     disease_type: str
     months_required: int
-    months_elapsed: int  # from policy inception to admission date
 
 
 @dataclass(frozen=True)
@@ -85,6 +94,20 @@ class PolicyRules:
     proportionate_deduction: ProportionateRule | None
     # MUST be explicit — drives ₹24,667 swing in fixture
     apportionment_base: ApportionmentBase
+    # Interpretations of "associated medical expenses" that the extracted
+    # policy wording can support. Only used to bound the out-of-pocket
+    # range when apportionment_base is UNRESOLVED: the range must never
+    # include a reading the wording expressly rules out (e.g. a clause
+    # stating "Medicines … are not subject to proportionate deduction"
+    # must not admit ALL_MEDICAL_EXPENSES as the worst case). Derived
+    # from clause evidence at the API layer; the default (all concrete
+    # bases) is the honest fallback when the wording's support is
+    # itself unknown.
+    apportionment_candidates: tuple[ApportionmentBase, ...] = (
+        ApportionmentBase.ROOM_RELATED_ONLY,
+        ApportionmentBase.SURGEON_OT_DIAGNOSTICS,
+        ApportionmentBase.ALL_MEDICAL_EXPENSES,
+    )
 
 
 @dataclass(frozen=True)

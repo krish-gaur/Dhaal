@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS documents (
 );
 
 CREATE TABLE IF NOT EXISTS clauses (
-    id             TEXT PRIMARY KEY,
+    -- Clause ids (e.g. c_room_rent_01) are only unique within a session's
+    -- document; two sessions loading the same fixture must not collide.
+    id             TEXT NOT NULL,
     document_id    TEXT NOT NULL REFERENCES documents(id),
     session_id     TEXT NOT NULL REFERENCES sessions(id),
     page           INT,
@@ -34,7 +36,8 @@ CREATE TABLE IF NOT EXISTS clauses (
     schema_valid   BOOLEAN,
     quote_found    BOOLEAN,
     numbers_ok     BOOLEAN,
-    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at     TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (session_id, id)
 );
 
 CREATE TABLE IF NOT EXISTS simulation_runs (

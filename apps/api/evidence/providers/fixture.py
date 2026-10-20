@@ -22,7 +22,6 @@ from evidence.extract import (
 )
 
 # Path to fixtures directory — relative to repo root
-import os
 
 # DHAAL_FIXTURES_DIR env var overrides path resolution (useful in tests and CI)
 _FIXTURES_DIR = Path(

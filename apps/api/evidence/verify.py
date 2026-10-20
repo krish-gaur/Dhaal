@@ -34,10 +34,10 @@ if TYPE_CHECKING:
     pass
 
 from evidence.extract import (
-    Clause,
-    ClauseStatus,
     REQUIRED_PARAMS,
     SUPPORTED_RULE_TYPES,
+    Clause,
+    ClauseStatus,
     Verification,
 )
 
@@ -75,10 +75,7 @@ def check_injection(text: str) -> bool:
     for marker in _INJECTION_MARKERS:
         if marker in lower:
             return True
-    for ch in text:
-        if ord(ch) in _INJECTION_CODEPOINTS:
-            return True
-    return False
+    return any(ord(ch) in _INJECTION_CODEPOINTS for ch in text)
 
 
 # ---------------------------------------------------------------------------
@@ -266,7 +263,7 @@ def detect_conflicts(clauses: list[Clause]) -> list[Clause]:
 
     conflicting_ids: set[str] = set()
 
-    for rule_type, group in by_type.items():
+    for group in by_type.values():
         if len(group) < 2:
             continue
         # Check if any shared param has different values

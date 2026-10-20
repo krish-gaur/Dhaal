@@ -83,7 +83,8 @@
       "rule": {
         "type": "apportionment_base",
         "params": {
-          "scope": "unresolved"
+          "scope": "unresolved",
+          "candidates": "room_related_only,surgeon_ot_diagnostics"
         }
       },
       "verification": {

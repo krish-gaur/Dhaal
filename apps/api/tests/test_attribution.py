@@ -47,13 +47,14 @@ FIXTURE_CHARGES = [
 ]
 
 
-def _rules_waiting_month(month: int) -> PolicyRules:
+def _rules() -> PolicyRules:
+    """Fixture policy rules. Months elapsed live in ClaimInputs, not here."""
     return PolicyRules(
         sum_insured=Decimal("300000"),
         waterfall=FIXTURE_WATERFALL,
         room_limit=RoomLimit(basis="pct_sum_insured_per_day", value=Decimal("0.01")),
         waiting_periods=[
-            WaitingPeriod(disease_type="specified_disease", months_required=24, months_elapsed=month)
+            WaitingPeriod(disease_type="specified_disease", months_required=24)
         ],
         non_payable=NonPayableList(
             items=["Gloves", "Syringes", "Admission kit", "Attendant charges", "Telephone"],
@@ -99,20 +100,29 @@ INPUTS_AT_CAP = ClaimInputs(
 
 
 def test_delta_a_to_b() -> None:
-    """A→B: confirming continuity credit = +₹81,333 to insurer."""
-    rules_a = _rules_waiting_month(19)  # blocked
-    rules_b = _rules_waiting_month(25)  # continuity confirmed
+    """A→B: confirming continuity credit = +₹81,333 to insurer.
 
-    result_a = simulate_claim(rules_a, INPUTS_ABOVE_CAP)
-    result_b = simulate_claim(rules_b, INPUTS_ABOVE_CAP)
+    Exercised through counterfactual() on the single input
+    `policy_month_at_admit` (19 → 25), which is exactly how the API's
+    continuity toggle attributes the delta.
+    """
+    rules = _rules()
+    inputs_a = replace(INPUTS_ABOVE_CAP, policy_month_at_admit=19)
 
-    delta = result_b.insurer_payment - result_a.insurer_payment
-    assert delta == Decimal("81333")
+    result_a = simulate_claim(rules, inputs_a)
+    assert result_a.insurer_payment == Decimal("0")
+
+    cf = counterfactual(
+        rules, inputs_a, FieldChange("policy_month_at_admit", 19, 25)
+    )
+    assert cf.delta == Decimal("81333")
+    assert cf.new_result.insurer_payment == Decimal("81333")
+    assert cf.oop_delta == Decimal("-81333")
 
 
 def test_delta_b_to_c1() -> None:
     """B→C1: moving room to cap = +₹29,167 to insurer."""
-    rules = _rules_waiting_month(25)
+    rules = _rules()
 
     result_b = simulate_claim(rules, INPUTS_ABOVE_CAP)
     result_c1 = simulate_claim(rules, INPUTS_AT_CAP)
@@ -123,11 +133,11 @@ def test_delta_b_to_c1() -> None:
 
 def test_delta_a_to_c1() -> None:
     """A→C1: both changes = +₹1,10,500 to insurer."""
-    rules_a = _rules_waiting_month(19)
-    rules_c1 = _rules_waiting_month(25)
+    rules = _rules()
+    inputs_a = replace(INPUTS_ABOVE_CAP, policy_month_at_admit=19)
 
-    result_a = simulate_claim(rules_a, INPUTS_ABOVE_CAP)
-    result_c1 = simulate_claim(rules_c1, INPUTS_AT_CAP)
+    result_a = simulate_claim(rules, inputs_a)
+    result_c1 = simulate_claim(rules, INPUTS_AT_CAP)
 
     delta = result_c1.insurer_payment - result_a.insurer_payment
     assert delta == Decimal("110500")
@@ -138,12 +148,12 @@ def test_additivity_fixture() -> None:
     For the fixture rule set, A→B + B→C1 must equal A→C1.
     This is a property of this specific rule set — not a universal law.
     """
-    rules_a = _rules_waiting_month(19)
-    rules_b_c = _rules_waiting_month(25)
+    rules = _rules()
+    inputs_a = replace(INPUTS_ABOVE_CAP, policy_month_at_admit=19)
 
-    r_a = simulate_claim(rules_a, INPUTS_ABOVE_CAP).insurer_payment
-    r_b = simulate_claim(rules_b_c, INPUTS_ABOVE_CAP).insurer_payment
-    r_c1 = simulate_claim(rules_b_c, INPUTS_AT_CAP).insurer_payment
+    r_a = simulate_claim(rules, inputs_a).insurer_payment
+    r_b = simulate_claim(rules, INPUTS_ABOVE_CAP).insurer_payment
+    r_c1 = simulate_claim(rules, INPUTS_AT_CAP).insurer_payment
 
     delta_ab = r_b - r_a          # 81333
     delta_bc1 = r_c1 - r_b       # 29167
@@ -159,129 +169,17 @@ def test_additivity_fixture() -> None:
 
 def test_interaction_nonzero_copay_room() -> None:
     """
-    Co-payment + room-cap combination is non-additive.
-
-    With co-pay applied AFTER proportionate deduction:
-    - Changing room rate changes both room_deduction AND prop_deduction
-    - Co-pay then applies to whatever is left after both
-    - So: f(room_change + copay_change) != f(room_change) + f(copay_change)
-    
-    We test two different co-pay rates as change_a and change_b to expose
-    the non-additivity. The actual non-additive case comes from co-pay
-    being applied to a different base depending on the room cap path.
-    
-    Instead, we construct a case where:
-    - change_a = reduce the room rate (changes prop deduction base and amount)
-    - change_b = increase nights (changes room total, cap eligible, and prop base)
-    Both feed into the co-pay base — they interact non-additively.
+    Non-additive case: with a 10% co-pay and a sum-insured cap that bites,
+    changing the room rate and changing nights interact — the combined
+    effect is not the sum of the individual effects, because the clamp at
+    the remaining sum insured is non-linear.
     """
-    rules_with_copay = PolicyRules(
-        sum_insured=Decimal("300000"),
-        waterfall=FIXTURE_WATERFALL,
-        room_limit=RoomLimit(basis="pct_sum_insured_per_day", value=Decimal("0.01")),
-        waiting_periods=[
-            WaitingPeriod(disease_type="x", months_required=24, months_elapsed=25)
-        ],
-        non_payable=NonPayableList(items=["item"], total=Decimal("9500")),
-        co_payment=CoPayment(pct=Decimal("0.10")),
-        deductible=None,
-        proportionate_deduction=ProportionateRule(trigger="room_above_cap"),
-        apportionment_base=ApportionmentBase.SURGEON_OT_DIAGNOSTICS,
-    )
-
-    # Base: room above cap (₹4,500/night). Co-pay applies to net-after-room-and-prop.
-    # change_a: reduce room rate to cap (3000) — removes room AND prop deductions,
-    #           widens the co-pay base substantially
-    # change_b: increase nights from 3 to 4 — changes room total, eligible, prop ratio
-    # These interact because prop_deduction = base * (1 - room_eligible/room_billed)
-    # and room_eligible changes differently with each change.
-
-    change_room_rate = FieldChange(
-        field="room_rate_per_night",
-        from_val=Decimal("4500"),
-        to_val=Decimal("3500"),  # still above cap but different ratio
-    )
-    change_nights = FieldChange(
-        field="nights",
-        from_val=3,
-        to_val=5,  # more nights changes both room_billed and room_eligible equally,
-                   # but prop_deduction ratio is room_eligible/room_billed = constant
-                   # So these may be additive... let's try a different b change.
-    )
-
-    # Better: change_b = change remaining_sum_insured so the clamp kicks in differently
-    # Actually the cleanest non-additive case: co-pay is pct of net;
-    # change_a changes net by X, change_b changes net by Y,
-    # combined: co-pay absorbs 10% of (X+Y) so linear — still additive.
-    # 
-    # True non-additivity: the deduction chain is non-linear.
-    # Prop deduction = base * (1 - cap/billed). If we change both cap AND billed,
-    # the ratio changes non-linearly.
-    # 
-    # The cleanest test: use a deductible (fixed amount) + proportionate deduction.
-    # Deductible applied after prop = non-linear interaction.
-
-    rules_with_deductible = PolicyRules(
-        sum_insured=Decimal("300000"),
-        waterfall=FIXTURE_WATERFALL,
-        room_limit=RoomLimit(basis="pct_sum_insured_per_day", value=Decimal("0.01")),
-        waiting_periods=[
-            WaitingPeriod(disease_type="x", months_required=24, months_elapsed=25)
-        ],
-        non_payable=NonPayableList(items=["item"], total=Decimal("9500")),
-        co_payment=CoPayment(pct=Decimal("0.15")),   # 15% co-pay
-        deductible=None,
-        proportionate_deduction=ProportionateRule(trigger="room_above_cap"),
-        apportionment_base=ApportionmentBase.SURGEON_OT_DIAGNOSTICS,
-    )
-
-    # change_a: reduce room rate from 4500 to 3200 (changes ratio significantly)
-    # change_b: reduce gross bill (changes co-pay base)
-    # With co-pay at 15%: prop_deduction changes the base, gross change affects it differently
-    #
-    # Concretely:
-    # Base (4500/night, gross 120000):
-    #   prop = 74000 * (1 - 9000/13500) = 74000 * 0.3333 = 24667
-    #   net = 120000 - 9500 - 4500 - 24667 = 81333
-    #   copay = 81333 * 0.15 = 12200
-    #   insurer = 81333 - 12200 = 69133
-    #
-    # change_a only (3200/night, gross 120000):
-    #   room_billed = 9600, room_eligible = 9000, room_ded = 600
-    #   ratio = 9000/9600 = 0.9375
-    #   prop = 74000*(1-0.9375) = 74000*0.0625 = 4625
-    #   net = 120000-9500-600-4625 = 105275
-    #   copay = 105275*0.15 = 15791
-    #   insurer_a = 105275 - 15791 = 89484
-    #   delta_a = 89484 - 69133 = 20351
-    #
-    # change_b only (4500/night, gross 110000):
-    #   same prop as base: 24667
-    #   net = 110000-9500-4500-24667 = 71333
-    #   copay = 71333*0.15 = 10700
-    #   insurer_b = 71333 - 10700 = 60633
-    #   delta_b = 60633 - 69133 = -8500
-    #
-    # change_a+b (3200/night, gross 110000):
-    #   net = 110000-9500-600-4625 = 95275
-    #   copay = 95275*0.15 = 14291
-    #   insurer_ab = 95275 - 14291 = 80984
-    #   delta_ab = 80984 - 69133 = 11851
-    #
-    # additive = 20351 + (-8500) = 11851 — hmm, this is additive!
-    # That's because co-pay is purely linear in net, and prop+room are independent of gross.
-    # 
-    # TRUE non-additive: co-pay pct depends on a threshold (doesn't apply here).
-    # OR: sum_insured cap interacts with deductions (when insurer > SI).
-    #
-    # Let's use a small SI so the cap clamp makes the interaction non-additive.
-    
     rules_small_si = PolicyRules(
         sum_insured=Decimal("300000"),
         waterfall=FIXTURE_WATERFALL,
         room_limit=RoomLimit(basis="pct_sum_insured_per_day", value=Decimal("0.01")),
         waiting_periods=[
-            WaitingPeriod(disease_type="x", months_required=24, months_elapsed=25)
+            WaitingPeriod(disease_type="x", months_required=24)
         ],
         non_payable=NonPayableList(items=["item"], total=Decimal("9500")),
         co_payment=CoPayment(pct=Decimal("0.10")),
@@ -290,7 +188,7 @@ def test_interaction_nonzero_copay_room() -> None:
         apportionment_base=ApportionmentBase.SURGEON_OT_DIAGNOSTICS,
     )
 
-    # Use a large gross so the SI cap bites — clamp makes it non-linear
+    # Large gross so the remaining-SI clamp bites — clamp makes it non-linear
     large_inputs = ClaimInputs(
         gross_bill=Decimal("500000"),
         charges=[
@@ -341,13 +239,6 @@ def test_interaction_zero_independent_changes() -> None:
         remaining_sum_insured=Decimal("300000"),
     )
 
-    # Two changes to gross bill — both shift insurer payment linearly
-    # In this simple case, residual should be 0 (linear system)
-    change_a = FieldChange("gross_bill", Decimal("50000"), Decimal("60000"))
-    change_b = FieldChange("gross_bill", Decimal("60000"), Decimal("70000"))
-
-    # Can't apply two changes to the same field via apply_change in sequence cleanly,
-    # so test the interaction_check directly on different fields
     change_a2 = FieldChange("gross_bill", Decimal("50000"), Decimal("55000"))
     change_remaining = FieldChange(
         "remaining_sum_insured", Decimal("300000"), Decimal("250000")
@@ -366,8 +257,38 @@ def test_apply_change_unknown_field() -> None:
 
 def test_counterfactual_single_field_zero_residual() -> None:
     """Single-field counterfactual always has interaction_residual == 0."""
-    rules = _rules_waiting_month(25)
+    rules = _rules()
     change = FieldChange("room_rate_per_night", Decimal("4500"), Decimal("3000"))
     result = counterfactual(rules, INPUTS_ABOVE_CAP, change)
     assert result.interaction_residual == Decimal("0")
     assert len(result.changed_fields) == 1
+
+
+def test_apply_change_changes_exactly_one_field() -> None:
+    """Each counterfactual changes its intended variable and nothing else.
+
+    Attribution is only honest if every other input is bit-identical;
+    this pins that property for every supported field.
+    """
+    from dataclasses import fields as dc_fields
+
+    cases: list[tuple[str, object]] = [
+        ("room_rate_per_night", Decimal("3000")),
+        ("policy_month_at_admit", 25),
+        ("gross_bill", Decimal("115500")),
+        ("nights", 2),
+        ("remaining_sum_insured", Decimal("200000")),
+    ]
+    for field, to_val in cases:
+        changed = apply_change(
+            INPUTS_ABOVE_CAP,
+            FieldChange(field, getattr(INPUTS_ABOVE_CAP, field), to_val),
+        )
+        assert getattr(changed, field) == to_val
+        for f in dc_fields(INPUTS_ABOVE_CAP):
+            if f.name != field:
+                assert getattr(changed, f.name) == getattr(INPUTS_ABOVE_CAP, f.name), (
+                    f"counterfactual on {field} also changed {f.name}"
+                )
+    # The original inputs object is immutable and untouched.
+    assert INPUTS_ABOVE_CAP.room_rate_per_night == Decimal("4500")

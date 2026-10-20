@@ -1,0 +1,53 @@
+:root {
+  /* Surfaces */
+  --color-bg: #faf9f6;
+  --color-panel: #ffffff;
+  --color-inset: #f4f2ed;
+  --color-border: #e4e1d9;
+
+  /* Ink */
+  --color-text-1: #16150f;
+  --color-text-2: #5c5a52;
+  --color-text-3: #8a877c;
+  --color-text-inv: #ffffff;
+
+  /* Semantic */
+  --color-verified: #2f6b4f;
+  --color-caution: #b4762a;
+  --color-conflict: #a8322d;
+  --color-action: #1f4e79;
+  --color-brand: #0b5d52;
+
+  /* Fixture banner + evidence highlight */
+  --color-fixture-bg: #fdf8ee;
+  --color-highlight-bg: #fbf3d9;
+
+  /* The one permitted shadow — modal and sticky VerdictBar only */
+  --shadow-modal: 0 1px 2px rgba(22, 21, 15, 0.06);
+
+  /* Spacing (4px base) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --sp-12: 48px;
+  --sp-16: 64px;
+
+  /* Radius — nothing above 8px anywhere */
+  --radius-input: 4px;
+  --radius-panel: 6px;
+
+  /* Type scale */
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 26px;
+  --text-2xl: 34px;
+
+  --font-sans: "IBM Plex Sans", "IBM Plex Sans Devanagari", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+}
