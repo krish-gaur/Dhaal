@@ -21,6 +21,7 @@ from fastapi.responses import JSONResponse
 
 from db.session_store import init_db
 from routes.audit import router as audit_router
+from routes.catalogue import router as catalogue_router
 from routes.clauses import router as clauses_router
 from routes.document import router as document_router
 from routes.estimate import router as estimate_router
@@ -112,6 +113,7 @@ async def generic_exception_handler(request: Request, exc: Exception) -> JSONRes
 # Routers
 # ---------------------------------------------------------------------------
 
+app.include_router(catalogue_router)
 app.include_router(session_router)
 app.include_router(document_router)
 app.include_router(clauses_router)

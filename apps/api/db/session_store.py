@@ -21,7 +21,7 @@ from db.models import ClauseRow, DocumentRow, SessionRow, SimulationRunRow
 _DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./dhaal.db")
 _DB_PATH = _DATABASE_URL.replace("sqlite:///", "")
 
-_MIGRATION_PATH = Path(__file__).parent / "migrations" / "001_initial.sql"
+_MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 
 def _get_conn() -> sqlite3.Connection:
@@ -41,10 +41,25 @@ def get_db() -> Generator[sqlite3.Connection, None, None]:
 
 
 def init_db() -> None:
-    """Create all tables by running the migration SQL."""
+    """Run all migrations in order. Idempotent: CREATEs use IF NOT EXISTS
+    and ALTER ... ADD COLUMN duplicates are tolerated (SQLite has no
+    ADD COLUMN IF NOT EXISTS), so this is safe on every startup."""
     with _get_conn() as conn:
-        sql = _MIGRATION_PATH.read_text()
-        conn.executescript(sql)
+        for path in sorted(_MIGRATIONS_DIR.glob("*.sql")):
+            buffer = ""
+            for line in path.read_text().splitlines(keepends=True):
+                buffer += line
+                if sqlite3.complete_statement(buffer):
+                    stmt = buffer.strip()
+                    buffer = ""
+                    if not stmt:
+                        continue
+                    try:
+                        conn.execute(stmt)
+                    except sqlite3.OperationalError as e:
+                        if "duplicate column" not in str(e).lower():
+                            raise
+        conn.commit()
 
 
 # ---------------------------------------------------------------------------
@@ -56,14 +71,40 @@ def create_session(
     conn: sqlite3.Connection,
     mode: str,
     goal: str | None = None,
+    *,
+    catalogue_product_id: str | None = None,
+    catalogue_version: str | None = None,
+    insurer_name: str | None = None,
+    product_name: str | None = None,
+    identification_status: str | None = None,
 ) -> dict[str, str]:
     session_id = str(uuid.uuid4())
     conn.execute(
-        "INSERT INTO sessions (id, mode, goal) VALUES (?, ?, ?)",
-        (session_id, mode, goal),
+        "INSERT INTO sessions (id, mode, goal, catalogue_product_id, "
+        "catalogue_version, insurer_name, product_name, identification_status) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            session_id, mode, goal, catalogue_product_id, catalogue_version,
+            insurer_name, product_name, identification_status,
+        ),
     )
     conn.commit()
     return {"session_id": session_id, "mode": mode}
+
+
+def _session_from_row(row: sqlite3.Row) -> SessionRow:
+    return SessionRow(
+        id=row["id"],
+        mode=row["mode"],
+        goal=row["goal"],
+        created_at=row["created_at"],
+        deleted_at=row["deleted_at"],
+        catalogue_product_id=row["catalogue_product_id"],
+        catalogue_version=row["catalogue_version"],
+        insurer_name=row["insurer_name"],
+        product_name=row["product_name"],
+        identification_status=row["identification_status"],
+    )
 
 
 def get_session(conn: sqlite3.Connection, session_id: str) -> SessionRow | None:
@@ -73,13 +114,7 @@ def get_session(conn: sqlite3.Connection, session_id: str) -> SessionRow | None:
     ).fetchone()
     if row is None:
         return None
-    return SessionRow(
-        id=row["id"],
-        mode=row["mode"],
-        goal=row["goal"],
-        created_at=row["created_at"],
-        deleted_at=row["deleted_at"],
-    )
+    return _session_from_row(row)
 
 
 def delete_session(conn: sqlite3.Connection, session_id: str) -> dict[str, object]:
@@ -116,22 +151,7 @@ def delete_session(conn: sqlite3.Connection, session_id: str) -> dict[str, objec
 # ---------------------------------------------------------------------------
 
 
-def create_document(
-    conn: sqlite3.Connection,
-    session_id: str,
-    filename: str,
-    page_count: int,
-    page_texts: list[str],
-) -> DocumentRow:
-    doc_id = str(uuid.uuid4())
-    text_content = json.dumps(page_texts, ensure_ascii=False)
-    conn.execute(
-        "INSERT INTO documents (id, session_id, filename, page_count, text_content) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (doc_id, session_id, filename, page_count, text_content),
-    )
-    conn.commit()
-    row = conn.execute("SELECT * FROM documents WHERE id = ?", (doc_id,)).fetchone()
+def _document_from_row(row: sqlite3.Row) -> DocumentRow:
     return DocumentRow(
         id=row["id"],
         session_id=row["session_id"],
@@ -139,7 +159,46 @@ def create_document(
         page_count=row["page_count"],
         text_content=row["text_content"],
         created_at=row["created_at"],
+        source_kind=row["source_kind"],
+        source_url=row["source_url"],
+        doc_version=row["doc_version"],
+        effective_date=row["effective_date"],
+        uin=row["uin"],
+        sha256=row["sha256"],
+        retrieved_at=row["retrieved_at"],
     )
+
+
+def create_document(
+    conn: sqlite3.Connection,
+    session_id: str,
+    filename: str,
+    page_count: int,
+    page_texts: list[str],
+    *,
+    source_kind: str | None = None,
+    source_url: str | None = None,
+    doc_version: str | None = None,
+    effective_date: str | None = None,
+    uin: str | None = None,
+    sha256: str | None = None,
+    retrieved_at: str | None = None,
+) -> DocumentRow:
+    doc_id = str(uuid.uuid4())
+    text_content = json.dumps(page_texts, ensure_ascii=False)
+    conn.execute(
+        "INSERT INTO documents (id, session_id, filename, page_count, "
+        "text_content, source_kind, source_url, doc_version, effective_date, "
+        "uin, sha256, retrieved_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (
+            doc_id, session_id, filename, page_count, text_content,
+            source_kind, source_url, doc_version, effective_date, uin,
+            sha256, retrieved_at,
+        ),
+    )
+    conn.commit()
+    row = conn.execute("SELECT * FROM documents WHERE id = ?", (doc_id,)).fetchone()
+    return _document_from_row(row)
 
 
 def get_document(conn: sqlite3.Connection, session_id: str) -> DocumentRow | None:
@@ -149,14 +208,7 @@ def get_document(conn: sqlite3.Connection, session_id: str) -> DocumentRow | Non
     ).fetchone()
     if row is None:
         return None
-    return DocumentRow(
-        id=row["id"],
-        session_id=row["session_id"],
-        filename=row["filename"],
-        page_count=row["page_count"],
-        text_content=row["text_content"],
-        created_at=row["created_at"],
-    )
+    return _document_from_row(row)
 
 
 # ---------------------------------------------------------------------------

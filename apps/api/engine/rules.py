@@ -24,6 +24,7 @@ class RuleType(StrEnum):
     CO_PAYMENT = "co_payment"
     DEDUCTIBLE = "deductible"
     WAITING_PERIOD = "waiting_period"
+    EXCLUSION = "exclusion"
 
 
 class ApportionmentBase(StrEnum):
@@ -46,38 +47,87 @@ class ApportionmentBase(StrEnum):
 class RoomLimit:
     basis: Literal["pct_sum_insured_per_day", "fixed_per_day"]
     value: Decimal  # 0.01 for 1%; or a fixed rupee amount per day
+    # Evidence trail: where this rule came from. The API layer fills these
+    # from the source clause (page + clause id) so every deduction the
+    # engine emits can be traced to its clause. Empty means "not
+    # recorded" — the engine says so rather than inventing a page.
+    citation: str = ""
+    source_clause_id: str | None = None
 
 
 @dataclass(frozen=True)
 class WaitingPeriod:
     """
-    A policy rule: `months_required` months must elapse before this
-    disease/procedure is covered.
+    A policy rule: coverage starts only after a waiting period elapses.
 
-    Months actually elapsed is NOT part of the rule — it is a property of
-    the claim event, carried by `ClaimInputs.policy_month_at_admit`.
-    Keeping elapsed in exactly one place (the inputs) is what makes the
-    continuity counterfactual (change one input, recompute) well-defined.
+    Elapsed time is NOT part of the rule — it is a property of the claim
+    event (`ClaimInputs.policy_month_at_admit` / `days_since_inception`,
+    which already include any portability/continuity credit the caller
+    has evidence for). Keeping elapsed in exactly one place (the inputs)
+    is what makes the continuity counterfactual well-defined.
+
+    Scopes:
+    - "initial": day-based (use days_required, months_required=0);
+      typically has an accident exception.
+    - "specified": month-based; applies only to the diseases/procedures
+      in `conditions` (condition tags). conditions=None means the clause
+      as extracted does not enumerate conditions, so it applies to any
+      condition — the caller is responsible for only constructing that
+      form when the wording really is unconditional.
+    - "pre_existing": month-based; applies only when the claim's
+      condition is flagged pre-existing.
+
+    `pending` marks a clause that exists but is not confirmed
+    (user marked it unknown / unverified): the engine never applies it,
+    but surfaces it as unresolved so the range reflects that it *might*.
     """
 
     disease_type: str
     months_required: int
+    scope: Literal["initial", "specified", "pre_existing"] = "specified"
+    conditions: tuple[str, ...] | None = None
+    days_required: int | None = None
+    accident_exception: bool = False
+    pending: bool = False
+    citation: str = ""
+    source_clause_id: str | None = None
+
+
+@dataclass(frozen=True)
+class ExclusionRule:
+    """
+    A coverage exclusion: claims whose condition tag matches one of
+    `conditions` are not covered at all. Distinct from a deduction —
+    the engine reports it as an exclusion, never as a reduction.
+    """
+
+    conditions: tuple[str, ...]
+    label: str = ""
+    pending: bool = False
+    citation: str = ""
+    source_clause_id: str | None = None
 
 
 @dataclass(frozen=True)
 class NonPayableList:
     items: list[str]
     total: Decimal
+    citation: str = ""
+    source_clause_id: str | None = None
 
 
 @dataclass(frozen=True)
 class CoPayment:
     pct: Decimal  # e.g. Decimal("0.10") for 10%
+    citation: str = ""
+    source_clause_id: str | None = None
 
 
 @dataclass(frozen=True)
 class ProportionateRule:
     trigger: Literal["room_above_cap"]
+    citation: str = ""
+    source_clause_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -108,6 +158,12 @@ class PolicyRules:
         ApportionmentBase.SURGEON_OT_DIAGNOSTICS,
         ApportionmentBase.ALL_MEDICAL_EXPENSES,
     )
+    # Coverage exclusions (condition-tagged). Evaluated by the EXCLUSION
+    # waterfall step; empty when the policy has none extracted.
+    exclusions: tuple[ExclusionRule, ...] = ()
+    # Evidence trail for the deductible (a bare Decimal above).
+    deductible_citation: str = ""
+    deductible_clause_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -125,6 +181,18 @@ class ClaimInputs:
     nights: int
     policy_month_at_admit: int
     remaining_sum_insured: Decimal
+    # What the admission is for, as a condition tag matched against
+    # waiting-period and exclusion clause condition lists. None means
+    # "not supplied" — conditional rules then surface as unresolved
+    # instead of being silently applied or silently skipped.
+    condition_tag: str | None = None
+    # True/False when known; None when not supplied.
+    is_pre_existing: bool | None = None
+    is_accident: bool = False
+    # Days from first policy inception to admission, including any
+    # credited continuity. Needed to evaluate day-based (initial)
+    # waiting periods; None → such rules surface as unresolved.
+    days_since_inception: int | None = None
 
 
 @dataclass(frozen=True)
@@ -135,6 +203,10 @@ class Deduction:
     basis: str
     rule_id: str
     citation: str
+    # The clause this deduction traces to (None only when rules were
+    # constructed without clause linkage, e.g. engine unit tests; the
+    # API layer always sets it — no deduction without a source clause).
+    source_clause_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -173,6 +245,7 @@ class InvariantError(Exception):
 # Real policies may differ; always use PolicyRules.waterfall, not this.
 # ---------------------------------------------------------------------------
 FIXTURE_WATERFALL: list[RuleType] = [
+    RuleType.EXCLUSION,
     RuleType.WAITING_PERIOD,
     RuleType.NON_PAYABLE,
     RuleType.ROOM_RENT_LIMIT,

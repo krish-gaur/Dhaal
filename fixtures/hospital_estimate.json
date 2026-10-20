@@ -33,6 +33,8 @@
   "policy_facts": {
     "sum_insured": "300000",
     "policy_month_at_admit": 19,
-    "note": "Synthetic household/policy facts for the demo. Sum insured as per the fictional policy schedule (page 1). Policy month 19 is the scenario assumption: admission falls inside the 24-month specified-disease waiting period unless continuity credit is confirmed."
+    "note": "Synthetic household/policy facts for the demo. Sum insured as per the fictional policy schedule (page 1). Policy month 19 is the scenario assumption: admission falls inside the 24-month specified-disease waiting period unless continuity credit is confirmed.",
+    "condition_tag": "gallbladder_cholecystectomy",
+    "inception_date": "2022-07-15"
   }
 }

@@ -34,11 +34,33 @@ class ApiError(BaseModel):
 class CreateSessionRequest(BaseModel):
     goal: str | None = None
     use_fixture: bool = True
+    # Policy identification. When a catalogue product is selected, the
+    # exact held wording (this version) is loaded for the session; the
+    # server validates that the product/version exists and never silently
+    # substitutes another one. Declared names cover the upload path: the
+    # user tells us which policy they believe they hold, but the document
+    # is their upload and is not catalogue-verified.
+    catalogue_product_id: str | None = None
+    catalogue_version: str | None = None
+    declared_insurer: str | None = None
+    declared_product: str | None = None
+
+
+class PolicyIdentity(BaseModel):
+    insurer: str | None
+    product_name: str | None
+    product_id: str | None
+    version: str | None
+    uin: str | None = None
+    fictional: bool = False
+    # "catalogue_verified" | "user_declared" | "unidentified"
+    identification_status: str
 
 
 class SessionResponse(BaseModel):
     session_id: str
     mode: Literal["fixture", "live"]
+    policy: PolicyIdentity | None = None
 
 
 class DeleteSessionResponse(BaseModel):
@@ -52,11 +74,24 @@ class DeleteSessionResponse(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class DocumentProvenance(BaseModel):
+    """Where a policy document came from and how to verify it."""
+
+    source_kind: str | None = None  # "catalogue_document" | "user_upload"
+    source_url: str | None = None
+    doc_version: str | None = None
+    effective_date: str | None = None
+    uin: str | None = None
+    sha256: str | None = None
+    retrieved_at: str | None = None
+
+
 class DocumentResponse(BaseModel):
     document_id: str
     filename: str
     page_count: int
     mode: Literal["fixture", "live"]
+    provenance: DocumentProvenance | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -132,6 +167,33 @@ class SimulationAssumptions(BaseModel):
     # Legacy convenience: when true, the waiting period is treated as served.
     # The frontend normally sends the effective policy_month_at_admit instead.
     continuity_confirmed: bool = False
+    # Claim context for condition-scoped rules (specified-disease waiting
+    # periods, pre-existing-disease waits, exclusions). All optional:
+    # when a needed fact is absent, the affected rule surfaces as
+    # unresolved instead of being guessed.
+    condition_tag: str | None = None
+    is_pre_existing: bool | None = None
+    is_accident: bool = False
+    # Policy-history derivation. When BOTH dates are supplied, elapsed
+    # months/days are computed server-side from them (plus any credited
+    # continuity/portability months) and take precedence over
+    # policy_month_at_admit. ISO dates (YYYY-MM-DD).
+    inception_date: str | None = None
+    admission_date: str | None = None
+    continuity_credit_months: int = Field(default=0, ge=0)
+
+    @field_validator("inception_date", "admission_date")
+    @classmethod
+    def _valid_iso_dates(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        from datetime import date as _date
+
+        try:
+            _date.fromisoformat(v)
+        except ValueError:
+            raise ValueError(f"Not an ISO date (YYYY-MM-DD): {v!r}") from None
+        return v
 
     _valid_decimals = field_validator(
         "remaining_sum_insured", "sum_insured"
@@ -178,6 +240,9 @@ class DeductionResponse(BaseModel):
     basis: str
     rule_id: str
     citation: str
+    # The clause this deduction traces to. The API layer always sets it —
+    # no policy-specific deduction exists without a source clause.
+    source_clause_id: str | None = None
 
 
 class UnresolvedRuleResponse(BaseModel):
@@ -286,6 +351,7 @@ class SessionDetailResponse(BaseModel):
     has_document: bool
     simulation_ready: bool
     material_facts: list[MaterialFactState]
+    policy: PolicyIdentity | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -298,6 +364,32 @@ class DocumentPagesResponse(BaseModel):
     filename: str
     page_count: int
     pages: list[str]
+    provenance: DocumentProvenance | None = None
+
+
+# ---------------------------------------------------------------------------
+# Policy catalogue
+# ---------------------------------------------------------------------------
+
+
+class CatalogueVersionInfo(BaseModel):
+    version: str
+    effective_date: str
+
+
+class CatalogueProduct(BaseModel):
+    product_id: str
+    insurer: str
+    product_name: str
+    uin: str | None = None
+    fictional: bool = False
+    versions: list[CatalogueVersionInfo]
+
+
+class CatalogueSearchResponse(BaseModel):
+    query: str
+    results: list[CatalogueProduct]
+    note: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -337,6 +429,11 @@ class EstimateResponse(BaseModel):
     # has to interpret policy parameters itself. None = not known yet.
     room_cap_per_day: str | None
     waiting_months_required: int | None
+    # Claim context for condition-scoped rules. condition_tag is the
+    # controlled-vocabulary tag for this admission's procedure/condition;
+    # inception_date is the first policy inception (synthetic demo fact).
+    condition_tag: str | None = None
+    inception_date: str | None = None
     affordability: AffordabilityResponse
     synthetic: bool = True
 
@@ -351,6 +448,7 @@ class AuditDocumentInfo(BaseModel):
     page_count: int
     pages_read: int
     retention: str
+    provenance: DocumentProvenance | None = None
 
 
 class AuditRunInfo(BaseModel):
@@ -365,6 +463,7 @@ class AuditRunInfo(BaseModel):
 class AuditResponse(BaseModel):
     session_id: str
     mode: Literal["fixture", "live"]
+    policy: PolicyIdentity | None = None
     document: AuditDocumentInfo | None
     engine_version: str
     provider_name: str

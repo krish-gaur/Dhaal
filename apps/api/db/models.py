@@ -16,6 +16,15 @@ class SessionRow:
     goal: str | None
     created_at: str
     deleted_at: str | None
+    # Policy identification (002). identification_status is one of
+    # "catalogue_verified" (document held by Dhaal and hash-checked),
+    # "user_declared" (user named a policy we do not hold; document is
+    # their upload), or None/"unidentified".
+    catalogue_product_id: str | None = None
+    catalogue_version: str | None = None
+    insurer_name: str | None = None
+    product_name: str | None = None
+    identification_status: str | None = None
 
 
 @dataclass
@@ -26,6 +35,14 @@ class DocumentRow:
     page_count: int
     text_content: str  # JSON list of page strings
     created_at: str
+    # Provenance (002): where this document came from and how to verify it.
+    source_kind: str | None = None  # "catalogue" | "user_upload"
+    source_url: str | None = None
+    doc_version: str | None = None
+    effective_date: str | None = None
+    uin: str | None = None
+    sha256: str | None = None
+    retrieved_at: str | None = None
 
 
 @dataclass

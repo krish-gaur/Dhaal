@@ -2,8 +2,9 @@ import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
 
 // Demo happy path over the synthetic fixture (Screen 1 → Screen 5).
-// Three of the four fixture clauses arrive pre-verified against the PDF text;
-// the apportionment clause is deliberately left unresolved, so Screen 3 must
+// Six of the seven held clauses arrive pre-verified against the PDF text
+// (room, three scoped waiting periods, exclusions, non-payables); the
+// apportionment clause is deliberately left unresolved, so Screen 3 must
 // show the ₹14,000–₹38,667 range (point estimate ₹14,000 / insurer ₹1,06,000).
 // The clause expressly exempts medicines from the deduction, so an
 // all-medical-expenses reading (which would give ₹49,500) must not
@@ -19,10 +20,10 @@ async function startDemo(page: Page): Promise<void> {
   await page.waitForURL(/\/evidence\//);
 }
 
-async function confirmAllClauses(page: Page): Promise<void> {
+async function confirmAllClauses(page: Page, expectedCount = 7): Promise<void> {
   const rows = page.locator(".clause-row");
-  await expect(rows).toHaveCount(4);
-  for (let i = 0; i < 4; i++) {
+  await expect(rows).toHaveCount(expectedCount);
+  for (let i = 0; i < expectedCount; i++) {
     const row = rows.nth(i);
     await row.locator(".row-head").click();
     await row.getByRole("button", { name: "Confirm", exact: true }).click();
@@ -84,4 +85,31 @@ test("multi-change shows message instead of delta", async ({ page }) => {
   await page.getByTestId("continuity-off").click();
   await expect(page.getByTestId("multi-change")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByTestId("delta-chip")).toHaveCount(0);
+});
+
+test("policy search: a different policy gives a different calculation", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "What are you planning for?" })).toBeVisible();
+
+  // Identify the exact policy through the catalogue autocomplete.
+  await page.getByText("Find my policy", { exact: true }).click();
+  const search = page.getByLabel(/Search by insurer or product name/);
+  await search.fill("aarogya");
+  const option = page.getByRole("option", { name: /AarogyaKavach Prime/ });
+  await expect(option).toBeVisible({ timeout: 15_000 });
+  await option.click();
+  await expect(page.getByText(/Selected policy/)).toBeVisible();
+
+  await page.getByRole("button", { name: "Start →" }).click();
+  await page.waitForURL(/\/evidence\//);
+  await expect(page.getByText(/AarogyaKavach Prime/).first()).toBeVisible({ timeout: 15_000 });
+
+  // Nine held clauses, all pre-verified (this wording defines its
+  // apportionment base), so the result is a single figure — and a
+  // different one from the sample policy for the same bill:
+  // ₹5,000/day room cap (no excess), 10% co-payment, ₹5,000 deductible.
+  await confirmAllClauses(page, 9);
+  await expect(page.getByText("₹25,550").first()).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(/Co-payment/).first()).toBeVisible();
+  await expect(page.getByTestId("conservation-check")).toContainText("= ₹1,20,000");
 });

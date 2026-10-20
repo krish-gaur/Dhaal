@@ -143,10 +143,55 @@ export default function AuditPage({ params }: { params: Promise<{ sessionId: str
                     {t("s2_doc_meta", lang, { pages: audit.document.page_count })})
                   </td>
                 </tr>
+                {audit.policy?.insurer || audit.policy?.product_name ? (
+                  <tr>
+                    <th scope="row">{t("s2_policy_block_title", lang)}</th>
+                    <td>
+                      {[audit.policy?.insurer, audit.policy?.product_name]
+                        .filter(Boolean)
+                        .join(" — ")}
+                      {audit.policy?.version
+                        ? ` · ${t("s2_prov_version", lang, { version: audit.policy.version })}`
+                        : ""}
+                      {audit.policy?.uin
+                        ? ` · ${t("s1_uin", lang, { uin: audit.policy.uin })}`
+                        : ""}
+                      {audit.policy?.fictional
+                        ? ` (${t("s1_fictional_badge", lang)})`
+                        : ""}
+                    </td>
+                  </tr>
+                ) : null}
                 <tr>
                   <th scope="row">{t("s5_row_purpose", lang)}</th>
                   <td>{t("s5_purpose_text", lang)}</td>
                 </tr>
+                {audit.document.provenance ? (
+                  <>
+                    <tr>
+                      <th scope="row">SHA-256</th>
+                      <td style={{ wordBreak: "break-all" }}>
+                        {audit.document.provenance.sha256 ?? "—"}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th scope="row">{t("s5_row_source", lang)}</th>
+                      <td>
+                        {audit.document.provenance.source_kind === "catalogue_document"
+                          ? t("s2_source_catalogue", lang)
+                          : t("s2_source_upload", lang)}
+                        {audit.document.provenance.effective_date
+                          ? ` · ${t("s2_prov_effective", lang, {
+                              date: audit.document.provenance.effective_date,
+                            })}`
+                          : ""}
+                        {audit.document.provenance.retrieved_at
+                          ? ` · ${audit.document.provenance.retrieved_at.slice(0, 19).replace("T", " ")}`
+                          : ""}
+                      </td>
+                    </tr>
+                  </>
+                ) : null}
                 <tr>
                   <th scope="row">{t("s5_row_pages", lang)}</th>
                   <td>{audit.document.pages_read}</td>

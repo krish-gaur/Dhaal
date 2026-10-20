@@ -6,6 +6,10 @@ import type { NextConfig } from "next";
 const API_INTERNAL_URL = process.env.API_INTERNAL_URL ?? "http://127.0.0.1:8000";
 
 const nextConfig: NextConfig = {
+  // Dev-only: the hosted preview serves this app from a *.e2b.app origin;
+  // without this, Next warns (and future majors will block) on /_next/*
+  // dev resources. No effect on production builds.
+  allowedDevOrigins: ["*.e2b.app"],
   async rewrites() {
     return [
       {

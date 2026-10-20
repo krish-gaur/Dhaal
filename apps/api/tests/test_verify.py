@@ -350,7 +350,7 @@ def test_fixture_provider_loads() -> None:
     assert provider.provider_name == "fixture"
 
     clauses = provider.extract_clauses([], "doc_test")
-    assert len(clauses) == 4
+    assert len(clauses) == 7
 
 
 def test_fixture_provider_clause_ids() -> None:
@@ -410,6 +410,6 @@ def test_fixture_provider_works_offline() -> None:
     try:
         from evidence.providers.fixture import FixtureProvider
         clauses = FixtureProvider().extract_clauses([], "doc_offline_test")
-        assert len(clauses) == 4
+        assert len(clauses) == 7
     finally:
         socket.getaddrinfo = original_getaddrinfo

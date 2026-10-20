@@ -1,15 +1,23 @@
-"""Document upload and processing route."""
+"""Document upload and processing route.
+
+Policy-first: a fixture-mode session loads the EXACT held wording the
+user selected from the catalogue (product + version pinned at session
+creation), and every document carries provenance — source kind, version,
+effective date, SHA-256 and retrieval time — so a calculation can always
+be tied to the bytes it came from.
+"""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
-import os
 import sqlite3
-from pathlib import Path
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 
+from db.models import DocumentRow, SessionRow
 from db.session_store import (
     create_document,
     get_db,
@@ -19,7 +27,12 @@ from db.session_store import (
 )
 from evidence.extract import get_provider
 from evidence.verify import check_injection, verify_all
-from routes.schemas import DocumentPagesResponse, DocumentResponse
+from routes.catalogue import HeldDocument, resolve_held_document
+from routes.schemas import (
+    DocumentPagesResponse,
+    DocumentProvenance,
+    DocumentResponse,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +40,6 @@ router = APIRouter(prefix="/api/session", tags=["document"])
 
 _MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 MB
 _PDF_MAGIC = b"%PDF"
-
-# Fixture document metadata (used when session mode is "fixture")
-_FIXTURE_PDF_PATH = Path(
-    os.getenv("DHAAL_FIXTURES_DIR")
-    or str(Path(__file__).parent.parent.parent.parent / "fixtures")
-) / "policy_suraksha_shield.pdf"
 
 
 def _extract_page_texts(file_bytes: bytes) -> list[str]:
@@ -57,6 +64,22 @@ def _is_scanned_pdf(page_texts: list[str]) -> bool:
     return total_chars < 50  # fewer than 50 chars total = likely scanned
 
 
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
+
+
+def _provenance_response(doc: DocumentRow) -> DocumentProvenance:
+    return DocumentProvenance(
+        source_kind=doc.source_kind or "user_upload",
+        source_url=doc.source_url,
+        doc_version=doc.doc_version,
+        effective_date=doc.effective_date,
+        uin=doc.uin,
+        sha256=doc.sha256,
+        retrieved_at=doc.retrieved_at,
+    )
+
+
 @router.post("/{session_id}/document", response_model=DocumentResponse)
 async def upload_document(
     session_id: str,
@@ -67,9 +90,9 @@ async def upload_document(
     if session is None:
         raise HTTPException(status_code=404, detail="Session not found")
 
-    # In fixture mode: use the pre-generated fixture PDF
+    # In fixture mode: load the exact catalogue wording the user selected.
     if session.mode == "fixture":
-        return _load_fixture_document(db, session_id)
+        return _load_fixture_document(db, session)
 
     # Validate file size
     file_bytes = await file.read()
@@ -135,13 +158,16 @@ async def upload_document(
             ),
         )
 
-    # Store document
+    # Store document with upload provenance
     doc = create_document(
         db,
         session_id=session_id,
         filename=file.filename or "policy.pdf",
         page_count=len(page_texts),
         page_texts=page_texts,
+        source_kind="user_upload",
+        sha256=hashlib.sha256(file_bytes).hexdigest(),
+        retrieved_at=_now_iso(),
     )
 
     # Extract and verify clauses
@@ -177,32 +203,57 @@ async def upload_document(
         filename=doc.filename,
         page_count=doc.page_count,
         mode="live",
+        provenance=_provenance_response(doc),
     )
 
 
-def _load_fixture_document(db: sqlite3.Connection, session_id: str) -> DocumentResponse:
-    """Load the fixture PDF and clauses for a fixture-mode session."""
-    if not _FIXTURE_PDF_PATH.exists():
-        raise HTTPException(
-            status_code=500,
-            detail="Fixture PDF not found. Run fixtures/generate_pdf.py first.",
-        )
+def _held_document_for(session: SessionRow) -> HeldDocument:
+    """Resolve the held wording pinned to this session.
 
-    # Extract text from fixture PDF
-    page_texts = _extract_page_texts(_FIXTURE_PDF_PATH.read_bytes())
+    Legacy fixture sessions (created before catalogue identity existed)
+    fall back to the historical sample policy — the document they were
+    always meant to load.
+    """
+    product_id = session.catalogue_product_id or "suraksha-shield-health"
+    version = session.catalogue_version or "2022"
+    return resolve_held_document(product_id, version)
+
+
+def _load_fixture_document(db: sqlite3.Connection, session: SessionRow) -> DocumentResponse:
+    """Load the selected catalogue wording and its verified clauses."""
+    held = _held_document_for(session)
+    pdf_bytes = held.pdf_path.read_bytes()
+    page_texts = _extract_page_texts(pdf_bytes)
+
+    both_names = (
+        f"{held.insurer} {held.product_name}".strip()
+        if held.product_name not in held.insurer
+        else held.insurer
+    )
+    display_name = f"{both_names} · {held.version} wording (fictional sample)"
 
     doc = create_document(
         db,
-        session_id=session_id,
-        filename="policy_suraksha_shield.pdf",
+        session_id=session.id,
+        filename=display_name,
         page_count=len(page_texts),
         page_texts=page_texts,
+        source_kind="catalogue_document",
+        doc_version=held.version,
+        effective_date=held.effective_date,
+        uin=held.uin,
+        sha256=hashlib.sha256(pdf_bytes).hexdigest(),
+        retrieved_at=_now_iso(),
     )
 
-    # Use fixture provider — no network
+    # Held clauses only — no network, no invention. The clause file is the
+    # one the catalogue entry names for this exact product + version.
     from evidence.providers.fixture import FixtureProvider
+
     provider = FixtureProvider()
-    raw_clauses = provider.extract_clauses(page_texts, doc.id)
+    raw_clauses = provider.extract_clauses(
+        page_texts, doc.id, clauses_path=held.clauses_path
+    )
 
     clause_dicts = [
         {
@@ -225,13 +276,14 @@ def _load_fixture_document(db: sqlite3.Connection, session_id: str) -> DocumentR
         for c in raw_clauses
     ]
 
-    upsert_clauses(db, session_id=session_id, document_id=doc.id, clauses=clause_dicts)
+    upsert_clauses(db, session_id=session.id, document_id=doc.id, clauses=clause_dicts)
 
     return DocumentResponse(
         document_id=doc.id,
-        filename="Sample policy · Suraksha Shield Health (fictional)",
+        filename=display_name,
         page_count=len(page_texts),
         mode="fixture",
+        provenance=_provenance_response(doc),
     )
 
 
@@ -256,4 +308,5 @@ def get_document_pages(
         filename=doc.filename,
         page_count=doc.page_count,
         pages=pages,
+        provenance=_provenance_response(doc),
     )

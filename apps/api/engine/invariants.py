@@ -63,6 +63,17 @@ def check_all(result: ClaimResult) -> bool:
     """
     assert_non_negative(result.insurer_payment, result.out_of_pocket, result.gross_bill)
     assert_conservation(result.gross_bill, result.insurer_payment, result.out_of_pocket)
+    # Every applied deduction must carry a citation. The engine fills an
+    # honest "source page not recorded" fallback rather than inventing a
+    # reference, so an empty citation here means a construction bug.
+    # (Clause-level traceability — source_clause_id pointing at a real,
+    # confirmed clause — is enforced by the API layer and its tests,
+    # where clause records exist.)
+    for d in result.deductions:
+        if not d.citation:
+            raise InvariantError(
+                f"Deduction '{d.name}' (rule {d.rule_id}) has no citation"
+            )
     if result.out_of_pocket > result.gross_bill:
         raise InvariantError(
             f"out_of_pocket={result.out_of_pocket} exceeds gross_bill={result.gross_bill}"

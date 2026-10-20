@@ -30,13 +30,17 @@ _FIXTURES_DIR = Path(
 )
 
 
-def _load_fixture_clauses() -> list[dict]:  # type: ignore[type-arg]
-    """Load policy_clauses.json from the fixtures directory."""
-    path = _FIXTURES_DIR / "policy_clauses.json"
+def _load_fixture_clauses(clauses_path: Path | None = None) -> list[dict]:  # type: ignore[type-arg]
+    """Load a clause JSON from the fixtures directory.
+
+    Default is the historical Suraksha Shield 2022 clause file; the
+    catalogue passes the exact file for the selected product + version.
+    """
+    path = clauses_path or (_FIXTURES_DIR / "policy_clauses.json")
     if not path.exists():
         raise FileNotFoundError(
             f"Fixture file not found: {path}. "
-            "Run fixtures/generate_pdf.py to generate fixture files."
+            "Run fixtures/build_policy_fixtures.py to generate fixture files."
         )
     with path.open(encoding="utf-8") as f:
         data = json.load(f)
@@ -87,12 +91,14 @@ class FixtureProvider:
         self,
         page_texts: list[str],
         document_id: str,
+        clauses_path: Path | None = None,
     ) -> list[Clause]:
         """
         Return fixture clauses, re-keyed to the given document_id.
         page_texts is accepted but not used — the fixture has pre-baked offsets.
+        clauses_path selects which held wording's clause file to load.
         """
-        raw_clauses = _load_fixture_clauses()
+        raw_clauses = _load_fixture_clauses(clauses_path)
         return [
             Clause(
                 clause_id=raw["clause_id"],

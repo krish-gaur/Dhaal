@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Clause } from "@/lib/api";
+import { dec, formatINR } from "@/lib/format";
 import { ruleLabel, t } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
 import { StatusDot } from "./StatusDot";
@@ -55,6 +56,9 @@ export function ClauseRow({
       >
         <span style={{ fontWeight: 500 }}>{ruleLabel(clause.rule.type, lang)}</span>
         <span className="muted small">{valueSummary}</span>
+        {clause.rule.params["section"] ? (
+          <span className="muted small">§{clause.rule.params["section"]}</span>
+        ) : null}
         {clause.page !== null ? (
           <span className="muted small">{t("page_of", lang, { page: clause.page })}</span>
         ) : null}
@@ -68,6 +72,24 @@ export function ClauseRow({
 
       {expanded ? (
         <div className="row-body">
+          {plainExplanation(clause, lang) ? (
+            <>
+              <p className="small muted" style={{ marginBottom: 4 }}>
+                {t("s2_plain_label", lang)}
+              </p>
+              <p style={{ marginBottom: 12 }}>{plainExplanation(clause, lang)}</p>
+            </>
+          ) : null}
+          {clause.rule.params["conditions"] ? (
+            <p className="small" style={{ marginBottom: 12 }}>
+              <span className="muted">{t("s2_conditions_label", lang)}: </span>
+              {(clause.rule.params["conditions"] ?? "")
+                .split(",")
+                .map((c) => c.trim().replaceAll("_", " "))
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
+          ) : null}
           <p className="small muted" style={{ marginBottom: 4 }}>
             {t("s2_quote_label", lang)}
           </p>
@@ -247,8 +269,15 @@ function summaryFor(clause: Clause): string {
       return p["basis"] === "pct_sum_insured_per_day"
         ? `${p["value"] ?? ""} × SI/day`
         : `₹${p["value"] ?? ""}/day`;
-    case "waiting_period":
-      return `${p["months_required"] ?? ""} months`;
+    case "waiting_period": {
+      if (p["scope"] === "initial") return `${p["days_required"] ?? ""} days`;
+      const n = (p["conditions"] ?? "").split(",").filter(Boolean).length;
+      const suffix =
+        p["scope"] === "pre_existing" ? " · pre-existing" : n > 0 ? ` · ${n} conditions` : "";
+      return `${p["months_required"] ?? ""} months${suffix}`;
+    }
+    case "exclusion":
+      return (p["conditions"] ?? "").split(",").filter(Boolean).length + " excluded";
     case "non_payable":
       return (p["items"] ?? "").split(",").filter(Boolean).length + " items";
     case "apportionment_base":
@@ -259,5 +288,53 @@ function summaryFor(clause: Clause): string {
       return `₹${p["amount"] ?? ""}`;
     default:
       return "";
+  }
+}
+
+/**
+ * Plain-language reading of a clause, built only from the clause's own
+ * extracted parameters (display formatting of API values — no new
+ * figures are computed here beyond percent/amount presentation).
+ */
+function plainExplanation(clause: Clause, lang: Lang): string | null {
+  const p = clause.rule.params;
+  const pct = (raw: string | undefined): string => {
+    const n = Number(raw ?? "");
+    return Number.isFinite(n) ? `${Math.round(n * 10000) / 100}%` : (raw ?? "");
+  };
+  const money = (raw: string | undefined): string =>
+    raw ? formatINR(dec(raw)) : "";
+  switch (clause.rule.type) {
+    case "room_rent_limit":
+      return p["basis"] === "pct_sum_insured_per_day"
+        ? t("expl_room_pct", lang, { pct: pct(p["value"]) })
+        : t("expl_room_fixed", lang, { amount: money(p["value"]) });
+    case "apportionment_base":
+    case "proportionate_deduction":
+      return t("expl_apportionment", lang);
+    case "waiting_period":
+      if (p["scope"] === "initial") {
+        return t("expl_initial", lang, {
+          days: p["days_required"] ?? "",
+          accident:
+            p["accident_exception"] === "true"
+              ? t("expl_initial_accident", lang)
+              : "",
+        });
+      }
+      if (p["scope"] === "pre_existing") {
+        return t("expl_ped", lang, { months: p["months_required"] ?? "" });
+      }
+      return t("expl_specified", lang, { months: p["months_required"] ?? "" });
+    case "exclusion":
+      return t("expl_exclusion", lang);
+    case "non_payable":
+      return t("expl_nonpayable", lang);
+    case "co_payment":
+      return t("expl_copay", lang, { pct: pct(p["pct"]) });
+    case "deductible":
+      return t("expl_deductible", lang, { amount: money(p["amount"]) });
+    default:
+      return null;
   }
 }

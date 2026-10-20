@@ -92,7 +92,9 @@ def test_full_fixture_flow() -> None:
     r = client.get(f"/api/session/{session_id}/clauses")
     assert r.status_code == 200
     clauses = r.json()
-    assert len(clauses) == 4
+    # 7 held clauses: room, apportionment, initial 30-day wait,
+    # specified 24-month wait, PED 36-month wait, exclusions, non-payables.
+    assert len(clauses) == 7
     clause_ids = {c["clause_id"] for c in clauses}
     assert "c_room_rent_01" in clause_ids
     assert "c_waiting_period_01" in clause_ids
@@ -128,6 +130,10 @@ def test_full_fixture_flow() -> None:
             "non_payable_total": "9500",
             "apportionment_base": "surgeon_ot_diagnostics",
             "continuity_confirmed": True,
+            "condition_tag": "gallbladder_cholecystectomy",
+            "is_pre_existing": False,
+            "inception_date": "2022-07-15",
+            "admission_date": "2024-08-15",
         },
     }
     r = client.post(f"/api/session/{session_id}/simulate", json=simulate_body)
@@ -238,6 +244,10 @@ def test_simulate_scenario_a_waiting_period() -> None:
             "non_payable_total": "9500",
             "apportionment_base": "surgeon_ot_diagnostics",
             "continuity_confirmed": False,
+            "condition_tag": "gallbladder_cholecystectomy",
+            "is_pre_existing": False,
+            "inception_date": "2022-07-15",
+            "admission_date": "2024-02-15",
         },
     })
     assert r.status_code == 200, r.text
@@ -282,6 +292,10 @@ def test_simulate_scenario_c1() -> None:
             "non_payable_total": "9500",
             "apportionment_base": "surgeon_ot_diagnostics",
             "continuity_confirmed": True,
+            "condition_tag": "gallbladder_cholecystectomy",
+            "is_pre_existing": False,
+            "inception_date": "2022-07-15",
+            "admission_date": "2024-08-15",
         },
     })
     assert r.status_code == 200, r.text

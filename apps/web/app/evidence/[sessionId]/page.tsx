@@ -21,7 +21,7 @@ const GROUPS: Array<{ id: string; labelKey: StringKey; types: string[] }> = [
     labelKey: "s2_group_limits",
     types: ["room_rent_limit", "apportionment_base", "proportionate_deduction"],
   },
-  { id: "exclusions", labelKey: "s2_group_exclusions", types: ["non_payable"] },
+  { id: "exclusions", labelKey: "s2_group_exclusions", types: ["non_payable", "exclusion"] },
 ];
 
 const MATERIAL = ["room_rent_limit", "waiting_period", "non_payable", "apportionment_base"];
@@ -137,12 +137,56 @@ export default function EvidencePage({ params }: { params: Promise<{ sessionId: 
       {session.mode === "fixture" ? <FixtureBanner /> : null}
       <div className="page" style={{ paddingBottom: 140 }}>
         <h1>{t("s2_title", lang)}</h1>
+        <h2 style={{ marginTop: 4 }}>{t("s2_review_title", lang)}</h2>
+        <p className="muted">{t("s2_review_intro", lang)}</p>
 
         {doc ? (
           <p className="muted" style={{ marginBottom: 16 }}>
             {doc.filename} · {t("s2_doc_meta", lang, { pages: doc.page_count })}
           </p>
         ) : null}
+
+        <div className="notice-box" style={{ marginBottom: 16 }}>
+          <p className="small muted" style={{ margin: "0 0 4px" }}>
+            {t("s2_policy_block_title", lang)}
+          </p>
+          {session.policy?.insurer || session.policy?.product_name ? (
+            <p style={{ margin: "0 0 4px" }}>
+              <strong>
+                {[session.policy?.insurer, session.policy?.product_name]
+                  .filter(Boolean)
+                  .join(" — ")}
+              </strong>
+              {session.policy?.fictional ? (
+                <span className="badge" style={{ marginLeft: 8 }}>
+                  {t("s1_fictional_badge", lang)}
+                </span>
+              ) : null}
+              {session.policy?.identification_status === "user_declared" ? (
+                <span className="badge" style={{ marginLeft: 8 }}>
+                  {t("s2_declared_badge", lang)}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
+          <p className="small" style={{ margin: 0 }}>
+            {doc?.provenance?.source_kind === "catalogue_document"
+              ? t("s2_source_catalogue", lang)
+              : t("s2_source_upload", lang)}
+            {doc?.provenance?.doc_version
+              ? ` · ${t("s2_prov_version", lang, { version: doc.provenance.doc_version })}`
+              : ""}
+            {doc?.provenance?.effective_date
+              ? ` · ${t("s2_prov_effective", lang, { date: doc.provenance.effective_date })}`
+              : ""}
+            {doc?.provenance?.uin
+              ? ` · ${t("s1_uin", lang, { uin: doc.provenance.uin })}`
+              : ""}
+            {doc?.provenance?.sha256
+              ? ` · ${t("s2_prov_hash", lang, { hash: doc.provenance.sha256.slice(0, 12) })}`
+              : ""}
+          </p>
+        </div>
 
         {error !== null ? <ErrorBox error={error} lang={lang} onRetry={() => void load()} /> : null}
 

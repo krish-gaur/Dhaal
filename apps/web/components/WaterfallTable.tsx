@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { ClaimResult, ClauseStatus } from "@/lib/api";
+import type { ClaimResult, ClauseStatus, Deduction } from "@/lib/api";
 import { dec, formatINR } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import type { Lang } from "@/lib/i18n";
@@ -20,14 +20,16 @@ export function WaterfallTable({
   lang,
   grossStatus,
   totalStatus,
-  statusForRule,
+  statusFor,
+  onViewClause,
 }: {
   result: ClaimResult;
   previous: ClaimResult | null;
   lang: Lang;
   grossStatus: ClauseStatus;
   totalStatus: ClauseStatus;
-  statusForRule: (ruleId: string) => ClauseStatus;
+  statusFor: (deduction: Deduction) => ClauseStatus;
+  onViewClause?: (clauseId: string) => void;
 }) {
   const [openBasis, setOpenBasis] = useState<string | null>(null);
 
@@ -68,7 +70,25 @@ export function WaterfallTable({
               <tr key={key} className={changed(d.rule_id, d.amount) ? "row-flash" : undefined}>
                 <td>
                   <span>{d.name}</span>
-                  <span className="muted small"> · {d.citation}</span>
+                  {d.source_clause_id && onViewClause ? (
+                    <button
+                      type="button"
+                      className="muted small"
+                      style={{
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                      }}
+                      onClick={() => onViewClause(d.source_clause_id as string)}
+                    >
+                      {" "}
+                      · {d.citation}
+                    </button>
+                  ) : (
+                    <span className="muted small"> · {d.citation}</span>
+                  )}
                   <button
                     type="button"
                     className="basis-btn"
@@ -86,7 +106,7 @@ export function WaterfallTable({
                 </td>
                 <td className="amount">
                   <Money
-                    amount={ws(String(-dec(d.amount)), statusForRule(d.rule_id))}
+                    amount={ws(String(-dec(d.amount)), statusFor(d))}
                     lang={lang}
                   />
                 </td>

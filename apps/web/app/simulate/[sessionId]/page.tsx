@@ -3,6 +3,7 @@
 import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ClaimDetails } from "@/components/ClaimDetails";
 import { FixtureBanner } from "@/components/AppHeader";
 import { DeltaChip } from "@/components/DeltaChip";
 import { LeanMonthBar } from "@/components/LeanMonthBar";
@@ -17,15 +18,17 @@ import type { ClaimResult, Clause, CounterfactualResult, Estimate, LoanMetrics, 
 import { dec, formatINR } from "@/lib/format";
 import { t } from "@/lib/i18n";
 import {
+  baselineClaim,
   baselineScenario,
   buildSimulateRequest,
   changedFields,
   counterfactualChange,
   effectiveMonth,
-  statusForRule,
+  elapsedFromDates,
+  statusForDeduction,
   weakestMaterialStatus,
 } from "@/lib/scenario";
-import type { ScenarioField, ScenarioState } from "@/lib/scenario";
+import type { ClaimState, ScenarioField, ScenarioState } from "@/lib/scenario";
 import { useLang } from "@/lib/useLang";
 import { withStatus } from "@/lib/types";
 
@@ -40,6 +43,7 @@ export default function SimulatePage({ params }: { params: Promise<{ sessionId: 
   const [estimate, setEstimate] = useState<Estimate | null>(null);
   const [loans, setLoans] = useState<LoanMetrics[] | null>(null);
   const [scenario, setScenario] = useState<ScenarioState | null>(null);
+  const [claim, setClaim] = useState<ClaimState | null>(null);
   const [result, setResult] = useState<ClaimResult | null>(null);
   const [previous, setPrevious] = useState<ClaimResult | null>(null);
   const [cf, setCf] = useState<{ field: ScenarioField; data: CounterfactualResult } | null>(null);
@@ -60,6 +64,7 @@ export default function SimulatePage({ params }: { params: Promise<{ sessionId: 
       setEstimate(e);
       setLoans(l);
       setScenario((prev) => prev ?? baselineScenario(e));
+      setClaim((prev) => prev ?? baselineClaim(e));
       setError(null);
     } catch (err) {
       setError(err);
@@ -74,12 +79,12 @@ export default function SimulatePage({ params }: { params: Promise<{ sessionId: 
 
   // Re-simulate on every scenario change (small debounce for the bill input).
   useEffect(() => {
-    if (!estimate || !clauses || !scenario || !baseline) return;
+    if (!estimate || !clauses || !scenario || !baseline || !claim) return;
     const grossNum = Number(scenario.grossBill);
     if (!Number.isFinite(grossNum) || grossNum < 0) return;
     const seq = ++runSeq.current;
     const timer = setTimeout(() => {
-      const body = buildSimulateRequest(estimate, clauses, scenario);
+      const body = buildSimulateRequest(estimate, clauses, scenario, claim);
       simulate(sessionId, body)
         .then((r) => {
           if (runSeq.current !== seq) return;
@@ -94,7 +99,7 @@ export default function SimulatePage({ params }: { params: Promise<{ sessionId: 
       const fields = changedFields(baseline, scenario);
       if (fields.length === 1 && fields[0]) {
         const field = fields[0];
-        const baseBody = buildSimulateRequest(estimate, clauses, baseline);
+        const baseBody = buildSimulateRequest(estimate, clauses, baseline, claim);
         counterfactual(sessionId, baseBody, counterfactualChange(estimate, baseline, scenario, field))
           .then((data) => {
             if (runSeq.current === seq) setCf({ field, data });
@@ -109,7 +114,7 @@ export default function SimulatePage({ params }: { params: Promise<{ sessionId: 
     return () => clearTimeout(timer);
     // result intentionally excluded: previous-result flash reads the ref-ish state once
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estimate, clauses, scenario, baseline, sessionId]);
+  }, [estimate, clauses, scenario, baseline, claim, sessionId]);
 
   if (error !== null && result === null) {
     return (
@@ -122,7 +127,7 @@ export default function SimulatePage({ params }: { params: Promise<{ sessionId: 
       </div>
     );
   }
-  if (!session || !clauses || !estimate || !scenario || !baseline) {
+  if (!session || !clauses || !estimate || !scenario || !baseline || !claim) {
     return (
       <div className="page">
         <Loading lang={lang} />
@@ -169,6 +174,13 @@ export default function SimulatePage({ params }: { params: Promise<{ sessionId: 
 
         {error !== null ? <ErrorBox error={error} lang={lang} onRetry={() => void load()} /> : null}
 
+        <h2>{t("s3_claim_title", lang)}</h2>
+        <p className="muted">{t("s3_claim_intro", lang)}</p>
+        <ClaimDetails claim={claim} lang={lang} onChange={setClaim} />
+        <p className="muted small" role="note" style={{ marginTop: 8 }}>
+          {t("s3_estimate_note", lang)}
+        </p>
+
         {result ? (
           <>
             <p className="muted" style={{ marginBottom: 4 }}>
@@ -203,7 +215,8 @@ export default function SimulatePage({ params }: { params: Promise<{ sessionId: 
               lang={lang}
               grossStatus={grossStatus}
               totalStatus={totalStatus}
-              statusForRule={(ruleId) => statusForRule(clauses, ruleId)}
+              statusFor={(d) => statusForDeduction(clauses, d)}
+              onViewClause={(cid) => router.push(`/evidence/${sessionId}#${cid}`)}
             />
 
             {hasUnresolved ? (
@@ -260,7 +273,12 @@ export default function SimulatePage({ params }: { params: Promise<{ sessionId: 
             <ul className="small">
               <li>
                 {t("s3_assump_month", lang, {
-                  month: effectiveMonth(estimate, scenario.continuityConfirmed),
+                  month:
+                    elapsedFromDates(
+                      claim.inceptionDate,
+                      claim.admissionDate,
+                      claim.continuityCreditMonths,
+                    )?.months ?? effectiveMonth(estimate, scenario.continuityConfirmed),
                 })}
               </li>
               <li>

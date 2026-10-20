@@ -14,7 +14,9 @@ from typing import Literal
 from fastapi import APIRouter, Depends, HTTPException
 
 from db.session_store import get_clauses, get_db, get_document, get_runs, get_session
+from routes.document import _provenance_response
 from routes.schemas import AuditDocumentInfo, AuditResponse, AuditRunInfo
+from routes.session import _policy_identity
 from version import APP_VERSION
 
 router = APIRouter(prefix="/api/session", tags=["audit"])
@@ -63,6 +65,7 @@ def get_audit(
             page_count=doc.page_count,
             pages_read=pages_read,
             retention="Deleted when you delete this session. Nothing is kept after deletion.",
+            provenance=_provenance_response(doc),
         )
 
     runs: list[AuditRunInfo] = []
@@ -99,6 +102,7 @@ def get_audit(
     return AuditResponse(
         session_id=session.id,
         mode=mode,
+        policy=_policy_identity(session),
         document=document_info,
         engine_version=APP_VERSION,
         provider_name=provider,

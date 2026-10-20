@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "note": "This catalogue lists only policy documents Dhaal actually holds and can hash-verify. All entries are FICTIONAL sample policies created for demonstration; they are not real insurance products and carry no UIN. If your policy is not listed, upload your policy PDF — Dhaal will not guess your wording.",
+  "products": [
+    {
+      "product_id": "suraksha-shield-health",
+      "insurer": "Suraksha General Insurance Co. Ltd.",
+      "product_name": "Suraksha Shield Health",
+      "uin": null,
+      "fictional": true,
+      "versions": [
+        {
+          "version": "2022",
+          "effective_date": "2022-04-01",
+          "sample_sum_insured": "300000",
+          "document": {
+            "pdf_file": "policy_suraksha_shield.pdf",
+            "clauses_file": "policy_clauses.json",
+            "document_name": "Suraksha Shield Health — Policy Wording (2022)"
+          }
+        },
+        {
+          "version": "2024",
+          "effective_date": "2024-04-01",
+          "sample_sum_insured": "300000",
+          "document": {
+            "pdf_file": "policy_suraksha_shield_2024.pdf",
+            "clauses_file": "policy_clauses_suraksha_2024.json",
+            "document_name": "Suraksha Shield Health — Policy Wording (2024)"
+          }
+        }
+      ]
+    },
+    {
+      "product_id": "aarogyakavach-prime",
+      "insurer": "AarogyaKavach General Insurance Co. Ltd.",
+      "product_name": "AarogyaKavach Prime",
+      "uin": null,
+      "fictional": true,
+      "versions": [
+        {
+          "version": "2022",
+          "effective_date": "2022-07-01",
+          "sample_sum_insured": "500000",
+          "document": {
+            "pdf_file": "policy_aarogyakavach_prime.pdf",
+            "clauses_file": "policy_clauses_aarogyakavach.json",
+            "document_name": "AarogyaKavach Prime — Policy Wording (2022)"
+          }
+        }
+      ]
+    }
+  ]
+}

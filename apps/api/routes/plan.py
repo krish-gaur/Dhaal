@@ -11,7 +11,9 @@ Loan offers are labelled synthetic in every response.
 
 from __future__ import annotations
 
+import calendar
 import sqlite3
+from datetime import date
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -30,6 +32,15 @@ from routes.schemas import ActionStep, LoanMetricsResponse, PlanResponse, Simula
 from routes.simulate import _build_policy_rules, _clause_params
 
 router = APIRouter(prefix="/api/session", tags=["plan"])
+
+
+def _shift_months(d: date, months: int) -> date:
+    """`d` advanced by whole calendar months, day clamped to month length."""
+    total = d.year * 12 + (d.month - 1) + months
+    year, month0 = divmod(total, 12)
+    month = month0 + 1
+    day = min(d.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
 
 # Draft GRO message template. The 14-day grievance-resolution window and the
 # Bima Bharosa escalation route are per IRDAI's Master Circular on Protection
@@ -117,13 +128,25 @@ def _estimate_inputs(estimate: dict, room_rate: Decimal, month: int) -> ClaimInp
         elif room_delta is not None and "surgeon" in str(c["name"]).lower():
             amount += room_delta
         charges.append(ChargeItem(name=str(c["name"]), amount=amount, nights=charge_nights))
+    facts = estimate["policy_facts"]
+    days_since: int | None = None
+    inception_raw = facts.get("inception_date")
+    if inception_raw:
+        # Days of cover corresponding to `month` whole months from the
+        # fixture inception date — so day-based (initial) waiting
+        # periods resolve consistently with the month figure.
+        inception = date.fromisoformat(str(inception_raw))
+        days_since = (_shift_months(inception, month) - inception).days
     return ClaimInputs(
         gross_bill=Decimal(str(estimate["gross_bill"])),
         charges=charges,
         room_rate_per_night=room_rate,
         nights=nights,
         policy_month_at_admit=month,
-        remaining_sum_insured=Decimal(str(estimate["policy_facts"]["sum_insured"])),
+        remaining_sum_insured=Decimal(str(facts["sum_insured"])),
+        condition_tag=str(facts["condition_tag"]) if facts.get("condition_tag") else None,
+        is_pre_existing=False,
+        days_since_inception=days_since,
     )
 
 
@@ -153,10 +176,35 @@ def _derive_steps(
     steps: list[ActionStep] = []
 
     # --- Step candidate 1: continuity credit (waiting period) -------------
-    waiting = clause_by_type.get("waiting_period")
+    # Only the condition-scoped (specified-disease) period drives this
+    # step — never the PED or initial wait. The clause cited is the
+    # specified waiting clause itself.
+    condition_tag = (
+        str(facts["condition_tag"]) if facts.get("condition_tag") else None
+    )
+    waiting: ClauseRow | None = None
+    for clause in clauses:
+        if clause.rule_type != "waiting_period":
+            continue
+        params = _clause_params(clause)
+        if params.get("scope", "specified") != "specified":
+            continue
+        conditions = [
+            c.strip() for c in params.get("conditions", "").split(",") if c.strip()
+        ]
+        if conditions and condition_tag and condition_tag not in conditions:
+            continue
+        waiting = clause
+        break
     served_month: int | None = None
-    if waiting is not None and rules.waiting_periods:
-        required = max(wp.months_required for wp in rules.waiting_periods)
+    specified = [
+        wp
+        for wp in rules.waiting_periods
+        if wp.scope == "specified"
+        and (not wp.conditions or (condition_tag and condition_tag in wp.conditions))
+    ]
+    if waiting is not None and specified:
+        required = max(wp.months_required for wp in specified)
         served_month = max(base_month, required)
         blocked = simulate_claim(rules, _estimate_inputs(estimate, billed_rate, base_month))
         served = simulate_claim(rules, _estimate_inputs(estimate, billed_rate, served_month))
@@ -340,6 +388,10 @@ def get_plan(
         non_payable_total=str(estimate["non_payable_total"]),
         apportionment_base="surgeon_ot_diagnostics",
         continuity_confirmed=False,
+        condition_tag=str(facts["condition_tag"]) if facts.get("condition_tag") else None,
+        is_pre_existing=False,
+        inception_date=str(facts["inception_date"]) if facts.get("inception_date") else None,
+        admission_date=str(estimate["admission_date"]) if estimate.get("admission_date") else None,
     )
     rules = _build_policy_rules(clauses, assumptions)
 

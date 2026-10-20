@@ -55,6 +55,15 @@ def _patch(session_id: str, clause_id: str, status: str) -> None:
 
 
 def _simulate_body(month: int = 25, apportionment: str = "surgeon_ot_diagnostics") -> dict:  # type: ignore[type-arg]
+    # Claim context the policy-first engine requires before any scoped
+    # waiting period can apply: the fixture scenario's condition (which IS
+    # listed in the policy's specified-disease table), not pre-existing,
+    # and inception/admission dates exactly `month` whole months apart so
+    # day-based (initial) waits also resolve. Dates: inception 2022-07-15,
+    # admission the same day-of-month `month` months later.
+    total = 2022 * 12 + (7 - 1) + month
+    year, month0 = divmod(total, 12)
+    admission = f"{year:04d}-{month0 + 1:02d}-15"
     return {
         "gross": "120000",
         "charges": _CHARGES,
@@ -67,6 +76,12 @@ def _simulate_body(month: int = 25, apportionment: str = "surgeon_ot_diagnostics
             "non_payable_total": "9500",
             "apportionment_base": apportionment,
             "continuity_confirmed": False,
+            "condition_tag": "gallbladder_cholecystectomy",
+            "is_pre_existing": False,
+            "is_accident": False,
+            "inception_date": "2022-07-15",
+            "admission_date": admission,
+            "continuity_credit_months": 0,
         },
     }
 

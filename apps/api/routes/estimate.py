@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from db.session_store import get_clauses, get_db, get_session
 from engine.loans import compute_affordability
+from routes.catalogue import resolve_held_document
 from routes.fixture_data import load_affordability_ctx, load_estimate_raw, load_income_raw
 from routes.schemas import (
     AffordabilityResponse,
@@ -40,9 +41,32 @@ def get_estimate(
     aff = compute_affordability(aff_ctx)
     policy_facts = estimate.get("policy_facts", {})
     sum_insured = Decimal(str(policy_facts["sum_insured"]))
+    condition_tag = (
+        str(policy_facts["condition_tag"])
+        if policy_facts.get("condition_tag")
+        else None
+    )
+    inception_date = (
+        str(policy_facts["inception_date"])
+        if policy_facts.get("inception_date")
+        else None
+    )
+
+    # When the session is pinned to a catalogue wording, the scenario's
+    # sum insured comes from that product+version sample — not from the
+    # shared estimate fixture.
+    if session.catalogue_product_id and session.catalogue_version:
+        held = resolve_held_document(
+            session.catalogue_product_id, session.catalogue_version
+        )
+        if held.sample_sum_insured:
+            sum_insured = Decimal(held.sample_sum_insured)
 
     # Policy parameters for the scenario controls, read from this session's
-    # applied clauses (never re-interpreted in the frontend).
+    # applied clauses (never re-interpreted in the frontend). The waiting
+    # figure shown is ONLY the condition-scoped requirement for this
+    # scenario's condition — never the PED/initial period, and never
+    # applied to a condition the policy does not list.
     room_cap_per_day: Decimal | None = None
     waiting_months_required: int | None = None
     for clause in get_clauses(db, session_id):
@@ -56,6 +80,14 @@ def get_estimate(
                 sum_insured * value if basis == "pct_sum_insured_per_day" else value
             )
         elif clause.rule_type == "waiting_period":
+            scope = params.get("scope", "specified")
+            if scope != "specified":
+                continue
+            conditions = [
+                c.strip() for c in params.get("conditions", "").split(",") if c.strip()
+            ]
+            if conditions and condition_tag and condition_tag not in conditions:
+                continue
             waiting_months_required = int(params.get("months_required", "0"))
 
     return EstimateResponse(
@@ -75,8 +107,10 @@ def get_estimate(
         procedure=str(estimate["procedure"]),
         admission_date=str(estimate["admission_date"]),
         discharge_date=str(estimate["discharge_date"]),
-        sum_insured=str(policy_facts["sum_insured"]),
+        sum_insured=str(sum_insured),
         policy_month_at_admit=int(policy_facts["policy_month_at_admit"]),
+        condition_tag=condition_tag,
+        inception_date=inception_date,
         room_cap_per_day=str(room_cap_per_day) if room_cap_per_day is not None else None,
         waiting_months_required=waiting_months_required,
         affordability=AffordabilityResponse(

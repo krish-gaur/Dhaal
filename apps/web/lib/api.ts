@@ -59,9 +59,35 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 /* ------------------------------- Session ------------------------------- */
 
+export type IdentificationStatus =
+  | "catalogue_verified"
+  | "user_declared"
+  | "unidentified";
+
+export interface PolicyIdentity {
+  insurer: string | null;
+  product_name: string | null;
+  product_id: string | null;
+  version: string | null;
+  uin: string | null;
+  fictional: boolean;
+  identification_status: IdentificationStatus;
+}
+
+export interface DocumentProvenance {
+  source_kind: string | null; // "catalogue_document" | "user_upload"
+  source_url: string | null;
+  doc_version: string | null;
+  effective_date: string | null;
+  uin: string | null;
+  sha256: string | null;
+  retrieved_at: string | null;
+}
+
 export interface SessionCreated {
   session_id: string;
   mode: Mode;
+  policy: PolicyIdentity | null;
 }
 
 export interface MaterialFactState {
@@ -77,6 +103,7 @@ export interface SessionDetail {
   has_document: boolean;
   simulation_ready: boolean;
   material_facts: MaterialFactState[];
+  policy: PolicyIdentity | null;
 }
 
 export interface DeleteResult {
@@ -85,11 +112,54 @@ export interface DeleteResult {
   counts: Record<string, number>;
 }
 
-export function createSession(useFixture: boolean, goal: string): Promise<SessionCreated> {
+export interface CreateSessionOptions {
+  goal: string;
+  /** Explicitly confirmed catalogue selection (product + exact version). */
+  catalogue?: { productId: string; version: string } | null;
+  /** Sample mode (the fictional Suraksha Shield 2022 held wording). */
+  useFixture?: boolean;
+  /** Names the user declares for an uploaded policy (not verified). */
+  declared?: { insurer: string; product: string } | null;
+}
+
+export function createSession(options: CreateSessionOptions): Promise<SessionCreated> {
   return request<SessionCreated>("/api/session", {
     method: "POST",
-    body: JSON.stringify({ use_fixture: useFixture, goal }),
+    body: JSON.stringify({
+      use_fixture: options.useFixture ?? false,
+      goal: options.goal,
+      catalogue_product_id: options.catalogue?.productId ?? null,
+      catalogue_version: options.catalogue?.version ?? null,
+      declared_insurer: options.declared?.insurer || null,
+      declared_product: options.declared?.product || null,
+    }),
   });
+}
+
+/* ------------------------------- Catalogue ------------------------------ */
+
+export interface CatalogueVersion {
+  version: string;
+  effective_date: string | null;
+}
+
+export interface CatalogueProduct {
+  product_id: string;
+  insurer: string;
+  product_name: string;
+  uin: string | null;
+  fictional: boolean;
+  versions: CatalogueVersion[];
+}
+
+export interface CatalogueSearch {
+  query: string;
+  results: CatalogueProduct[];
+  note: string;
+}
+
+export function searchCatalogue(query: string): Promise<CatalogueSearch> {
+  return request<CatalogueSearch>(`/api/catalogue?q=${encodeURIComponent(query)}`);
 }
 
 export function getSession(sessionId: string): Promise<SessionDetail> {
@@ -107,6 +177,7 @@ export interface DocumentInfo {
   filename: string;
   page_count: number;
   mode: Mode;
+  provenance: DocumentProvenance | null;
 }
 
 export interface DocumentPages {
@@ -114,6 +185,7 @@ export interface DocumentPages {
   filename: string;
   page_count: number;
   pages: string[];
+  provenance: DocumentProvenance | null;
 }
 
 /**
@@ -229,6 +301,8 @@ export interface Estimate {
   discharge_date: string;
   sum_insured: string;
   policy_month_at_admit: number;
+  condition_tag: string | null;
+  inception_date: string | null;
   room_cap_per_day: string | null;
   waiting_months_required: number | null;
   affordability: Affordability;
@@ -248,6 +322,13 @@ export interface SimulationAssumptions {
   non_payable_total: string | null;
   apportionment_base: string;
   continuity_confirmed: boolean;
+  /** Claim facts — waiting periods and exclusions are never guessed. */
+  condition_tag: string | null;
+  is_pre_existing: boolean | null;
+  is_accident: boolean;
+  inception_date: string | null;
+  admission_date: string | null;
+  continuity_credit_months: number;
 }
 
 export interface SimulateRequest {
@@ -264,6 +345,8 @@ export interface Deduction {
   basis: string;
   rule_id: string;
   citation: string;
+  /** The exact clause this deduction came from — always traceable. */
+  source_clause_id: string | null;
 }
 
 export interface UnresolvedRule {
@@ -371,11 +454,13 @@ export interface AuditRun {
 export interface Audit {
   session_id: string;
   mode: Mode;
+  policy: PolicyIdentity | null;
   document: {
     filename: string;
     page_count: number;
     pages_read: number;
     retention: string;
+    provenance: DocumentProvenance | null;
   } | null;
   engine_version: string;
   provider_name: string;

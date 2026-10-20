@@ -758,3 +758,15 @@ input.full {
   color: var(--color-text-2);
   padding: var(--sp-6) 0;
 }
+
+/* Small inline tag (e.g. "Fictional sample" next to a catalogue result) */
+.badge {
+  display: inline-block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 1px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  vertical-align: middle;
+}

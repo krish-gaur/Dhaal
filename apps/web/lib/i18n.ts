@@ -44,6 +44,84 @@ const en = {
   s1_starting: "Starting…",
   s1_choose_file: "Choose a PDF file",
   s1_file_required: "Choose a policy PDF, or turn on sample data.",
+  s5_row_source: "Document source",
+  /* Screen 1 — Policy identification */
+  s1_policy_title: "Which policy will you claim under?",
+  s1_policy_intro:
+    "Every figure Dhaal shows must come from your policy's own wording. Find your exact policy below, or upload your policy PDF.",
+  s1_mode_find: "Find my policy",
+  s1_mode_upload: "Upload my policy PDF",
+  s1_mode_sample: "Try the sample policy",
+  s1_search_label: "Search by insurer or product name",
+  s1_search_placeholder: "Start typing — e.g. Suraksha or AarogyaKavach",
+  s1_search_hint:
+    "Dhaal can only list policy wordings it actually holds and can verify. If yours is not listed, upload your policy PDF instead — never pick a look-alike policy.",
+  s1_searching: "Searching…",
+  s1_search_empty:
+    "No policy we hold matches that. Check the spelling, or upload your policy PDF below.",
+  s1_search_error: "Search didn't work. Check your connection and try again.",
+  s1_version_label: "Which version is your policy? Check your policy schedule.",
+  s1_effective_from: "wording effective {date}",
+  s1_fictional_badge: "Fictional sample",
+  s1_policy_selected: "Selected policy",
+  s1_change_policy: "Change",
+  s1_declared_insurer: "Insurer (from your policy schedule)",
+  s1_declared_product: "Product name (from your policy schedule)",
+  s1_declared_note:
+    "Optional, but recommended. Dhaal reads the PDF you upload; it cannot verify it against an official wording, so check every clause on the next screen.",
+  s1_need_selection: "Choose your exact policy and version above to continue.",
+  s1_uin: "UIN {uin}",
+
+  /* Screen 2 — Review conditions */
+  s2_review_title: "Review your policy conditions",
+  s2_review_intro:
+    "These conditions were found in the wording. Only clauses shown here can change what you pay — check each one against the document text before continuing.",
+  s2_policy_block_title: "Policy being simulated",
+  s2_source_catalogue: "Held wording from the catalogue",
+  s2_source_upload: "Your uploaded PDF — not verified against an official wording",
+  s2_prov_version: "Version {version}",
+  s2_prov_effective: "effective {date}",
+  s2_prov_hash: "SHA-256 {hash}…",
+  s2_declared_badge: "Name as you declared it",
+  s2_plain_label: "In plain words",
+  s2_conditions_label: "Applies to",
+  expl_room_pct:
+    "Room rent is paid only up to {pct} of your sum insured per day. Above that, the excess — and possibly a share of other charges — is yours to pay.",
+  expl_room_fixed:
+    "Room rent is paid only up to {amount} per day. Above that, the excess — and possibly a share of other charges — is yours to pay.",
+  expl_apportionment:
+    "If your room costs more than the limit, other charges may also be cut in proportion. Exactly which charges count is decided by this wording.",
+  expl_initial: "Illnesses are not covered during the first {days} days of the policy{accident}.",
+  expl_initial_accident: " (accidents are covered from day one)",
+  expl_specified:
+    "The diseases and procedures listed in this clause are covered only after {months} months of continuous cover.",
+  expl_ped:
+    "Pre-existing diseases are covered only after {months} months of continuous cover.",
+  expl_exclusion: "These treatments are never covered under this policy.",
+  expl_nonpayable:
+    "The insurer will not pay for these items, even if the hospital bills them.",
+  expl_copay: "You pay {pct} of every admissible claim amount yourself.",
+  expl_deductible: "You pay the first {amount} of each claim yourself.",
+
+  /* Screen 3 — Claim details */
+  s3_claim_title: "About this claim",
+  s3_claim_intro:
+    "Waiting periods and exclusions depend on the treatment and on your policy history. Give the facts here — Dhaal will not guess them, and anything unsure stays visibly unresolved.",
+  s3_condition_label: "Condition / procedure",
+  s3_condition_unsure: "I'm not sure",
+  s3_condition_other: "Something else (not listed)",
+  s3_ped_label: "Is this treatment for a pre-existing condition?",
+  s3_yes: "Yes",
+  s3_no: "No",
+  s3_unsure: "Not sure",
+  s3_accident_label: "Is this admission due to an accident?",
+  s3_inception_label: "Policy start date",
+  s3_admission_label: "Admission date",
+  s3_credit_label: "Months of earlier continuous cover credited (portability)",
+  s3_dates_derived: "From these dates: {months} months ({days} days) of cover at admission.",
+  s3_estimate_note:
+    "This is an estimate worked out from the policy wording — not an insurer-approved settlement. The insurer assesses the actual claim on its own terms.",
+
 
   /* Consent */
   consent_title: "What happens to your information",
@@ -102,6 +180,7 @@ const en = {
   rule_co_payment: "Co-payment",
   rule_deductible: "Deductible",
   rule_proportionate_deduction: "Proportionate deduction",
+  rule_exclusion: "Permanent exclusions",
 
   /* Screen 3 — Simulate */
   s3_title: "What you'll pay",
@@ -250,6 +329,84 @@ const hi: Record<StringKey, string> = {
   s1_starting: "शुरू हो रहा है…",
   s1_choose_file: "PDF फाइल चुनें",
   s1_file_required: "पॉलिसी PDF चुनें, या नमूना डेटा चालू करें।",
+  s5_row_source: "दस्तावेज़ स्रोत",
+  /* Screen 1 — Policy identification */
+  s1_policy_title: "आप किस पॉलिसी के तहत दावा करेंगे?",
+  s1_policy_intro:
+    "Dhaal का हर आंकड़ा आपकी पॉलिसी की अपनी शर्तों से आना चाहिए। नीचे अपनी सही पॉलिसी खोजें, या अपनी पॉलिसी PDF अपलोड करें।",
+  s1_mode_find: "मेरी पॉलिसी खोजें",
+  s1_mode_upload: "मेरी पॉलिसी PDF अपलोड करें",
+  s1_mode_sample: "नमूना पॉलिसी देखें",
+  s1_search_label: "बीमा कंपनी या उत्पाद के नाम से खोजें",
+  s1_search_placeholder: "टाइप करना शुरू करें — जैसे Suraksha या AarogyaKavach",
+  s1_search_hint:
+    "Dhaal केवल वही पॉलिसी शर्तें दिखा सकता है जो वास्तव में उसके पास हैं और सत्यापित हैं। अगर आपकी पॉलिसी सूची में नहीं है, तो अपनी पॉलिसी PDF अपलोड करें — मिलती-जुलती पॉलिसी कभी न चुनें।",
+  s1_searching: "खोजा जा रहा है…",
+  s1_search_empty:
+    "हमारे पास कोई पॉलिसी इससे मेल नहीं खाती। वर्तनी जांचें, या नीचे अपनी पॉलिसी PDF अपलोड करें।",
+  s1_search_error: "खोज नहीं हो पाई। अपना कनेक्शन जांचकर फिर कोशिश करें।",
+  s1_version_label: "आपकी पॉलिसी का कौन-सा संस्करण है? अपना पॉलिसी शेड्यूल देखें।",
+  s1_effective_from: "शर्तें {date} से प्रभावी",
+  s1_fictional_badge: "काल्पनिक नमूना",
+  s1_policy_selected: "चुनी गई पॉलिसी",
+  s1_change_policy: "बदलें",
+  s1_declared_insurer: "बीमा कंपनी (आपके पॉलिसी शेड्यूल से)",
+  s1_declared_product: "उत्पाद का नाम (आपके पॉलिसी शेड्यूल से)",
+  s1_declared_note:
+    "वैकल्पिक, लेकिन 권장 है। Dhaal आपकी अपलोड की गई PDF पढ़ता है; यह उसे किसी आधिकारिक संस्करण से सत्यापित नहीं कर सकता, इसलिए अगले स्क्रीन पर हर शर्त जांचें।",
+  s1_need_selection: "आगे बढ़ने के लिए ऊपर अपनी सही पॉलिसी और संस्करण चुनें।",
+  s1_uin: "UIN {uin}",
+
+  /* Screen 2 — Review conditions */
+  s2_review_title: "अपनी पॉलिसी की शर्तें जांचें",
+  s2_review_intro:
+    "ये शर्तें दस्तावेज़ में मिलीं। केवल यहीं दिख रही शर्तें आपके खर्च को बदल सकती हैं — आगे बढ़ने से पहले हर शर्त दस्तावेज़ से मिलाकर जांचें।",
+  s2_policy_block_title: "जिस पॉलिसी पर गणना होगी",
+  s2_source_catalogue: "कैटलॉग से लिया गया सत्यापित दस्तावेज़",
+  s2_source_upload: "आपकी अपलोड की गई PDF — किसी आधिकारिक संस्करण से सत्यापित नहीं",
+  s2_prov_version: "संस्करण {version}",
+  s2_prov_effective: "{date} से प्रभावी",
+  s2_prov_hash: "SHA-256 {hash}…",
+  s2_declared_badge: "नाम जैसा आपने बताया",
+  s2_plain_label: "सरल शब्दों में",
+  s2_conditions_label: "लागू है",
+  expl_room_pct:
+    "कमरे का किराया केवल आपकी बीमा राशि के {pct} प्रति दिन तक ही मिलेगा। उससे ऊपर का खर्च — और संभवतः अन्य खर्चों का एक हिस्सा — आपको देना होगा।",
+  expl_room_fixed:
+    "कमरे का किराया केवल {amount} प्रति दिन तक ही मिलेगा। उससे ऊपर का खर्च — और संभवतः अन्य खर्चों का एक हिस्सा — आपको देना होगा।",
+  expl_apportionment:
+    "अगर आपका कमरा सीमा से महंगा है, तो अन्य खर्चों में भी आनुपातिक कटौती हो सकती है। कौन-से खर्च गिने जाएंगे, यह यही दस्तावेज़ तय करता है।",
+  expl_initial: "पॉलिसी के पहले {days} दिनों में बीमारियाँ कवर नहीं होतीं{accident}।",
+  expl_initial_accident: " (दुर्घटनाएँ पहले दिन से कवर हैं)",
+  expl_specified:
+    "इस शर्त में सूचीबद्ध बीमारियाँ और प्रक्रियाएँ केवल {months} महीने के लगातार कवर के बाद ही कवर होती हैं।",
+  expl_ped:
+    "पहले से मौजूद बीमारियाँ केवल {months} महीने के लगातार कवर के बाद ही कवर होती हैं।",
+  expl_exclusion: "ये उपचार इस पॉलिसी में कभी कवर नहीं होते।",
+  expl_nonpayable:
+    "बीमा कंपनी इन चीज़ों के पैसे नहीं देगी, भले ही अस्पताल बिल में जोड़ दे।",
+  expl_copay: "हर स्वीकृत दावे की राशि का {pct} आपको स्वयं देना होगा।",
+  expl_deductible: "हर दावे के पहले {amount} आपको स्वयं देने होंगे।",
+
+  /* Screen 3 — Claim details */
+  s3_claim_title: "इस दावे के बारे में",
+  s3_claim_intro:
+    "प्रतीक्षा अवधि और अपवर्जन उपचार और आपकी पॉलिसी के इतिहास पर निर्भर करते हैं। यहाँ तथ्य दें — Dhaal अनुमान नहीं लगाएगा, और कोई भी अनिश्चित बात स्पष्ट रूप से अनसुलझी रहेगी।",
+  s3_condition_label: "बीमारी / प्रक्रिया",
+  s3_condition_unsure: "मुझे निश्चित नहीं है",
+  s3_condition_other: "कुछ और (सूची में नहीं)",
+  s3_ped_label: "क्या यह उपचार पहले से मौजूद बीमारी के लिए है?",
+  s3_yes: "हाँ",
+  s3_no: "नहीं",
+  s3_unsure: "निश्चित नहीं",
+  s3_accident_label: "क्या यह भर्ती किसी दुर्घटना के कारण है?",
+  s3_inception_label: "पॉलिसी शुरू होने की तारीख",
+  s3_admission_label: "भर्ती की तारीख",
+  s3_credit_label: "पूर्व लगातार कवर के गिने गए महीने (पोर्टेबिलिटी)",
+  s3_dates_derived: "इन तारीखों से: भर्ती के समय {months} महीने ({days} दिन) का कवर।",
+  s3_estimate_note:
+    "यह पॉलिसी की शर्तों से निकाला गया एक अनुमान है — बीमा कंपनी द्वारा स्वीकृत निपटान नहीं। असली दावे का आकलन बीमा कंपनी अपनी शर्तों पर करेगी।",
+
 
   /* Consent */
   consent_title: "आपकी जानकारी का क्या होगा",
@@ -308,6 +465,7 @@ const hi: Record<StringKey, string> = {
   rule_co_payment: "सह-भुगतान",
   rule_deductible: "कटौती योग्य राशि",
   rule_proportionate_deduction: "आनुपातिक कटौती",
+  rule_exclusion: "स्थायी अपवर्जन",
 
   /* Screen 3 — Simulate */
   s3_title: "आपको कितना देना होगा",
@@ -450,6 +608,7 @@ const RULE_KEYS: Record<string, StringKey> = {
   co_payment: "rule_co_payment",
   deductible: "rule_deductible",
   proportionate_deduction: "rule_proportionate_deduction",
+  exclusion: "rule_exclusion",
 };
 
 export function ruleLabel(ruleType: string, lang: Lang): string {
